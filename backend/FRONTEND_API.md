@@ -361,4 +361,181 @@ socket.on('payment_released', ({ job, bid }) => {
 7. **После выполнения**
    - `POST /jobs/:jobId/approve` → статус `COMPLETED`, показать `paymentTxHash`.
 
+---
 
+## 6. WebSocket‑диалог с SergBot (помощник постановки задач)
+
+SergBot – внутренний LLM‑агент, который помогает пользователю сформулировать задачу.
+Диалог также идёт через Socket.IO, на том же URL, что и в разделе 4.
+
+### 6.1. Подключение к диалогу
+
+1. Открыть Socket.IO‑подключение (см. пример в разделе 4).
+2. После `connect` отправить событие `agent_join`:
+
+```js
+socket.emit('agent_join', {
+  conversationId: 'conv_123',   // любой уникальный id диалога, который генерирует фронт
+  userId: userIdFromAuth,      // userId из /auth/login
+  context: {                    // опционально: доп. контекст
+    source: 'mobile_app'
+  }
+});
+
+socket.on('agent_joined', ({ conversationId }) => {
+  console.log('SergBot joined conversation', conversationId);
+});
+```
+
+Если данные невалидны, бэкенд может отправить:
+
+```js
+socket.on('agent_error', (err) => {
+  console.error(err.message);
+});
+```
+
+### 6.2. Отправка сообщений пользователя SergBot’у
+
+Фронт отправляет текстовые сообщения:
+
+```js
+socket.emit('agent_user_message', {
+  conversationId: 'conv_123',
+  userId: userIdFromAuth,
+  message: 'Хочу найти хорошие итальянские рестораны в Лондоне',
+  metadata: {
+    // опционально: любые структурированные данные
+  }
+});
+```
+
+Бэкенд:
+
+- ретранслирует сообщение всем участникам диалога:
+
+```js
+socket.on('agent_user_message', (payload) => {
+  // можно отрисовать сообщение пользователя в UI диалога
+});
+```
+
+- после обработки LLM отправляет ответ SergBot’а:
+
+```js
+socket.on('agent_bot_message', (payload) => {
+  // payload.message – текстовый ответ SergBot'а
+  // payload.context?.sergbotTaskId – если задача признана готовой и сохранена
+  // payload.context?.sergbotTaskStatus – текущий статус таски (например, PENDING)
+});
+```
+
+Поведение SergBot’а:
+
+- пока задача недостаточно чёткая – он задаёт вопросы и НЕ создаёт таску;
+- когда считает, что задача сформулирована корректно – создаёт внутреннюю таску и в ответе говорит пользователю,
+  что задача зафиксирована и нужно подождать обработки системой.
+
+---
+
+## 7. Вторая API для конструктора LLM‑агентов‑исполнителей
+
+Отдельная фронтенд‑панель для создания/настройки LLM‑агентов‑исполнителей использует **другой набор кредов**:
+
+- логин по email + password;
+- отдельный JWT с секретом `AGENT_JWT_SECRET`;
+- роуты префикса `/agent-auth` и `/executor-agents`.
+
+### 7.1. Auth для конструктора агентов
+
+#### 7.1.1. Регистрация
+
+**POST `/agent-auth/register`**
+
+Тело:
+
+```json
+{
+  "email": "agent-admin@example.com",
+  "password": "secret123"
+}
+```
+
+Ответ:
+
+```json
+{
+  "success": true
+}
+```
+
+#### 7.1.2. Логин
+
+**POST `/agent-auth/login`**
+
+Тело:
+
+```json
+{
+  "email": "agent-admin@example.com",
+  "password": "secret123"
+}
+```
+
+Ответ:
+
+```json
+{
+  "accessToken": "<JWT>",
+  "agentUserId": "uuid",
+  "email": "agent-admin@example.com"
+}
+```
+
+`accessToken` нужно использовать как:
+
+- `Authorization: Bearer <JWT>` для всех запросов конструктора агентов.
+
+### 7.2. Создание LLM‑агента‑исполнителя
+
+**POST `/executor-agents`**
+
+Заголовки:
+
+- `Authorization: Bearer <JWT>` (из `/agent-auth/login`)
+- `Content-Type: application/json`
+
+Тело:
+
+```json
+{
+  "name": "Researcher: London Restaurants",
+  "description": "Специализированный LLM, который ищет и оценивает рестораны в Лондоне.",
+  "capabilities": ["research", "restaurants", "london"],
+  "model": "gpt-4.1-mini",
+  "systemPrompt": "Ты агент, который помогает находить и оценивать рестораны в Лондоне...",
+  "inputGuidelines": "Перед началом работы уточни город, бюджет и тип кухни, если их нет в задаче.",
+  "refusalPolicy": "Отказывайся, если задача не про рестораны или нет нужных данных."
+}
+```
+
+Ответ:
+
+```json
+{
+  "id": "agent_1731600000000",
+  "name": "Researcher: London Restaurants",
+  "capabilities": ["research", "restaurants", "london"],
+  "description": "Специализированный LLM, который ищет и оценивает рестораны в Лондоне.",
+  "llmConfig": {
+    "model": "gpt-4.1-mini",
+    "systemPrompt": "Ты агент, который помогает находить и оценивать рестораны в Лондоне...",
+    "inputGuidelines": "Перед началом работы уточни город, бюджет и тип кухни, если их нет в задаче.",
+    "refusalPolicy": "Отказывайся, если задача не про рестораны или нет нужных данных."
+  },
+  "status": "ACTIVE"
+}
+```
+
+> Замечание: поведение агента при получении задач (ACCEPT / ASK_INFO / REJECT)
+> будет реализовано отдельно на базе `llmConfig` и onchain‑интеграции.

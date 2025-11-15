@@ -11,12 +11,26 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var WebsocketGateway_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebsocketGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
+const common_1 = require("@nestjs/common");
 const socket_io_1 = require("socket.io");
-let WebsocketGateway = class WebsocketGateway {
+const agents_service_1 = require("../agents/agents/agents.service");
+let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
+    agentsService;
+    logger = new common_1.Logger(WebsocketGateway_1.name);
     server;
+    constructor(agentsService) {
+        this.agentsService = agentsService;
+    }
+    handleConnection(client) {
+        this.logger.debug(`Client connected: ${client.id}`);
+    }
+    handleDisconnect(client) {
+        this.logger.debug(`Client disconnected: ${client.id}`);
+    }
     broadcastNewJob(job) {
         this.server.emit('new_job', job);
     }
@@ -35,6 +49,38 @@ let WebsocketGateway = class WebsocketGateway {
     handlePing(data) {
         return { event: 'pong', data };
     }
+    getConversationRoom(conversationId) {
+        return `conversation:${conversationId}`;
+    }
+    handleAgentJoin(client, payload) {
+        if (!payload?.conversationId) {
+            client.emit('agent_error', {
+                message: 'conversationId is required',
+            });
+            return;
+        }
+        const room = this.getConversationRoom(payload.conversationId);
+        client.join(room);
+        this.logger.debug(`Client ${client.id} joined conversation ${payload.conversationId}`);
+        client.emit('agent_joined', {
+            conversationId: payload.conversationId,
+        });
+    }
+    async handleAgentUserMessage(client, payload) {
+        if (!payload?.conversationId || !payload?.message) {
+            client.emit('agent_error', {
+                message: 'conversationId and message are required',
+            });
+            return;
+        }
+        const room = this.getConversationRoom(payload.conversationId);
+        this.server.to(room).emit('agent_user_message', {
+            ...payload,
+            socketId: client.id,
+        });
+        const botReply = await this.agentsService.handleUserMessage(payload);
+        this.server.to(room).emit('agent_bot_message', botReply);
+    }
 };
 exports.WebsocketGateway = WebsocketGateway;
 __decorate([
@@ -48,11 +94,28 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], WebsocketGateway.prototype, "handlePing", null);
-exports.WebsocketGateway = WebsocketGateway = __decorate([
+__decorate([
+    (0, websockets_1.SubscribeMessage)('agent_join'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", void 0)
+], WebsocketGateway.prototype, "handleAgentJoin", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('agent_user_message'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], WebsocketGateway.prototype, "handleAgentUserMessage", null);
+exports.WebsocketGateway = WebsocketGateway = WebsocketGateway_1 = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: {
             origin: '*',
         },
-    })
+    }),
+    __metadata("design:paramtypes", [agents_service_1.AgentsService])
 ], WebsocketGateway);
 //# sourceMappingURL=websocket.gateway.js.map

@@ -22,8 +22,10 @@ const bid_entity_1 = require("./entities/bid.entity");
 const agent_entity_1 = require("./entities/agent.entity");
 const delivery_entity_1 = require("./entities/delivery.entity");
 const wallet_mapping_entity_1 = require("./entities/wallet-mapping.entity");
+const sergbot_task_entity_1 = require("./entities/sergbot-task.entity");
 const wallet_controller_1 = require("./wallet/wallet.controller");
 const auth_module_1 = require("./auth/auth.module");
+const agent_auth_module_1 = require("./agent-auth/agent-auth.module");
 const dev_module_1 = require("./dev/dev.module");
 let AppModule = class AppModule {
 };
@@ -41,7 +43,14 @@ exports.AppModule = AppModule = __decorate([
                 username: process.env.DB_USER ?? 'postgres',
                 password: process.env.DB_PASSWORD ?? 'postgres',
                 database: process.env.DB_NAME ?? 'a2a_marketplace',
-                entities: [job_entity_1.JobEntity, bid_entity_1.BidEntity, agent_entity_1.AgentEntity, delivery_entity_1.DeliveryEntity, wallet_mapping_entity_1.WalletMappingEntity],
+                entities: [
+                    job_entity_1.JobEntity,
+                    bid_entity_1.BidEntity,
+                    agent_entity_1.AgentEntity,
+                    delivery_entity_1.DeliveryEntity,
+                    wallet_mapping_entity_1.WalletMappingEntity,
+                    sergbot_task_entity_1.SergbotTaskEntity,
+                ],
                 synchronize: true,
             }),
             blockchain_module_1.BlockchainModule,
@@ -50,6 +59,7 @@ exports.AppModule = AppModule = __decorate([
             jobs_module_1.JobsModule,
             websocket_module_1.WebsocketModule,
             auth_module_1.AuthModule,
+            agent_auth_module_1.AgentAuthModule,
             dev_module_1.DevModule,
         ],
         controllers: [app_controller_1.AppController, wallet_controller_1.WalletController],

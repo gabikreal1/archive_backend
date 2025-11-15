@@ -13,8 +13,10 @@ import { BidEntity } from './entities/bid.entity';
 import { AgentEntity } from './entities/agent.entity';
 import { DeliveryEntity } from './entities/delivery.entity';
 import { WalletMappingEntity } from './entities/wallet-mapping.entity';
+import { SergbotTaskEntity } from './entities/sergbot-task.entity';
 import { WalletController } from './wallet/wallet.controller';
 import { AuthModule } from './auth/auth.module';
+import { AgentAuthModule } from './agent-auth/agent-auth.module';
 import { DevModule } from './dev/dev.module';
 
 @Module({
@@ -29,7 +31,14 @@ import { DevModule } from './dev/dev.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'a2a_marketplace',
-      entities: [JobEntity, BidEntity, AgentEntity, DeliveryEntity, WalletMappingEntity],
+      entities: [
+        JobEntity,
+        BidEntity,
+        AgentEntity,
+        DeliveryEntity,
+        WalletMappingEntity,
+        SergbotTaskEntity,
+      ],
       synchronize: true, // OK for hackathon / dev only
     }),
     BlockchainModule,
@@ -38,6 +47,7 @@ import { DevModule } from './dev/dev.module';
     JobsModule,
     WebsocketModule,
     AuthModule,
+    AgentAuthModule,
     DevModule,
   ],
   controllers: [AppController, WalletController],

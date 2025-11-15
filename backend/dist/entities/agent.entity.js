@@ -18,6 +18,8 @@ let AgentEntity = class AgentEntity {
     name;
     walletAddress;
     capabilities;
+    description;
+    llmConfig;
     status;
     createdAt;
     bids;
@@ -33,13 +35,21 @@ __decorate([
     __metadata("design:type", String)
 ], AgentEntity.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'wallet_address' }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ name: 'wallet_address', nullable: true }),
+    __metadata("design:type", Object)
 ], AgentEntity.prototype, "walletAddress", void 0);
 __decorate([
     (0, typeorm_1.Column)('text', { array: true, nullable: true }),
     __metadata("design:type", Object)
 ], AgentEntity.prototype, "capabilities", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], AgentEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Object)
+], AgentEntity.prototype, "llmConfig", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: 'ACTIVE' }),
     __metadata("design:type", String)

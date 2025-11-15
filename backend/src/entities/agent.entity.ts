@@ -16,11 +16,38 @@ export class AgentEntity {
   @Column()
   name: string;
 
-  @Column({ name: 'wallet_address' })
-  walletAddress: string;
+  @Column({ name: 'wallet_address', nullable: true })
+  walletAddress: string | null;
 
+  /**
+   * Ключевые навыки / типы задач, которые умеет выполнять агент.
+   * Например: ["research", "translation", "summarization"].
+   */
   @Column('text', { array: true, nullable: true })
   capabilities: string[] | null;
+
+  /**
+   * Человекочитаемое описание агента (для UI конструктора).
+   */
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  /**
+   * LLM‑конфигурация агента.
+   * Здесь хранится system‑prompt и high‑level правила:
+   * - когда агент может брать задачу;
+   * - когда он должен запрашивать доп. информацию;
+   * - когда обязан отказываться.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  llmConfig:
+    | {
+        model: string;
+        systemPrompt: string;
+        inputGuidelines?: string;
+        refusalPolicy?: string;
+      }
+    | null;
 
   @Column({ default: 'ACTIVE' })
   status: string;
