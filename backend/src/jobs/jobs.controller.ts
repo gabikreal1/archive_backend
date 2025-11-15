@@ -55,4 +55,3 @@ export class JobsController {
     return this.jobsService.approveJob(jobId);
   }
 }
-

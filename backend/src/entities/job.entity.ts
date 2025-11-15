@@ -26,6 +26,9 @@ export class JobEntity {
   @Column({ type: 'text' })
   description: string;
 
+  @Column({ name: 'metadata_uri', type: 'text', nullable: true })
+  metadataUri: string | null;
+
   @Column('text', { array: true, nullable: true })
   tags: string[] | null;
 
@@ -48,5 +51,3 @@ export class JobEntity {
   @OneToMany(() => DeliveryEntity, (delivery) => delivery.job)
   deliveries?: DeliveryEntity[];
 }
-
-

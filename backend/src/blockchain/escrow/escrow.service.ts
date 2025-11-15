@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
+import { Web3Service } from '../web3.service';
 
 interface CreateEscrowParams {
   jobId: string;
@@ -17,49 +17,71 @@ interface ReleasePaymentParams {
 
 @Injectable()
 export class EscrowService {
-  private readonly provider: ethers.JsonRpcProvider;
-  private readonly escrowContract: ethers.Contract;
+  private readonly logger = new Logger(EscrowService.name);
 
-  constructor(private readonly configService: ConfigService) {
-    const rpcUrl =
-      this.configService.get<string>('ARC_RPC_URL') ??
-      'https://arc-testnet-rpc.placeholder';
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
-
-    const contractAddress =
-      this.configService.get<string>('ESCROW_CONTRACT_ADDRESS') ??
-      '0xEscrowContractAddress';
-
-    const abi = [
-      'event EscrowCreated(string jobId, address poster, address agent, uint256 amount)',
-      'event PaymentReleased(string jobId, address agent, uint256 amount)',
-      'function createEscrow(string jobId, address poster, address agent, uint256 amount)',
-      'function releasePayment(string jobId)',
-    ];
-
-    this.escrowContract = new ethers.Contract(
-      contractAddress,
-      abi,
-      this.provider,
-    );
-  }
+  constructor(private readonly web3Service: Web3Service) {}
 
   async createEscrow(
     params: CreateEscrowParams,
   ): Promise<{ escrowTxHash: string }> {
-    const escrowTxHash = `0xESCROW_TX_${Date.now()}`;
-    console.log('Creating escrow onchain (stub)', params);
-    // TODO: вызвать escrowContract.createEscrow(...) через signer
-    return { escrowTxHash };
+    const contract = this.web3Service.escrow;
+    const tx = await contract.write.lockFunds(
+      this.toBigInt(params.jobId),
+      params.poster,
+      params.agent,
+      this.parseAmount(params.amount),
+    );
+    const receipt = await tx.wait();
+    const parsed = this.web3Service.parseEvent(
+      contract,
+      receipt,
+      'EscrowCreated',
+    );
+    if (!parsed) {
+      this.logger.warn(`EscrowCreated event not found for job ${params.jobId}`);
+    }
+    return { escrowTxHash: tx.hash };
   }
 
   async releasePayment(
     params: ReleasePaymentParams,
   ): Promise<{ paymentTxHash: string }> {
-    const paymentTxHash = `0xPAYMENT_TX_${Date.now()}`;
-    console.log('Releasing payment onchain (stub)', params);
-    // TODO: вызвать escrowContract.releasePayment(...)
-    return { paymentTxHash };
+    const contract = this.web3Service.escrow;
+    const tx = await contract.write.releasePayment(this.toBigInt(params.jobId));
+    await tx.wait();
+    return { paymentTxHash: tx.hash };
+  }
+
+  async getEscrow(jobId: string) {
+    const contract = this.web3Service.escrow;
+    const result = await contract.read.getEscrow(this.toBigInt(jobId));
+    return {
+      user: result.user,
+      agent: result.agent,
+      amount: result.amount.toString(),
+      funded: result.funded,
+      released: result.released,
+      refunded: result.refunded,
+    };
+  }
+
+  private parseAmount(amount: string): bigint {
+    return ethers.parseUnits(amount, 6);
+  }
+
+  private toBigInt(value: string | number | bigint): bigint {
+    if (typeof value === 'bigint') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return BigInt(value);
+    }
+    if (/^0x/i.test(value)) {
+      return BigInt(value);
+    }
+    if (!/^\d+$/.test(value)) {
+      throw new Error(`Value ${value} is not a valid uint256.`);
+    }
+    return BigInt(value);
   }
 }
-

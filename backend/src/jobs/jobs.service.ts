@@ -9,6 +9,7 @@ import { OrderBookService } from '../blockchain/order-book/order-book.service';
 import { EscrowService } from '../blockchain/escrow/escrow.service';
 import { WalletService } from '../circle/wallet/wallet.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { IpfsService } from '../blockchain/ipfs/ipfs.service';
 
 @Injectable()
 export class JobsService {
@@ -21,18 +22,36 @@ export class JobsService {
     private readonly escrow: EscrowService,
     private readonly walletService: WalletService,
     private readonly websocketGateway: WebsocketGateway,
+    private readonly ipfsService: IpfsService,
   ) {}
 
   async createJob(userId: string, dto: CreateJobDto) {
     // 1) Resolve user wallet (Circle) and onchain address
     const posterWallet = await this.walletService.getOrCreateUserWallet(userId);
 
-    // 2) Create job onchain (OrderBook.postJob)
-    const { jobId, txHash } = await this.orderBook.postJob({
-      poster: posterWallet,
+    const jobMetadata = {
+      version: 1,
       description: dto.description,
       tags: dto.tags ?? [],
-      deadline: dto.deadline ? new Date(dto.deadline).getTime() : undefined,
+      deadline: dto.deadline ?? null,
+      posterWallet,
+      createdBy: userId,
+      createdAt: new Date().toISOString(),
+    };
+
+    const metadataUpload = await this.ipfsService.uploadJson(
+      jobMetadata,
+      `job-${Date.now()}`,
+    );
+
+    // 2) Create job onchain (OrderBook.postJob)
+    const { jobId, txHash } = await this.orderBook.postJob({
+      description: dto.description,
+      metadataUri: metadataUpload.uri,
+      tags: dto.tags ?? [],
+      deadline: dto.deadline
+        ? Math.floor(new Date(dto.deadline).getTime() / 1000)
+        : 0,
     });
 
     // 3) Persist to Postgres cache
@@ -42,6 +61,7 @@ export class JobsService {
       description: dto.description,
       tags: dto.tags ?? null,
       deadline: dto.deadline ? new Date(dto.deadline) : null,
+      metadataUri: metadataUpload.uri,
       status: JobStatus.OPEN,
     });
     await this.jobsRepo.save(job);
@@ -49,7 +69,12 @@ export class JobsService {
     // 4) Notify agents via WebSocket (backend-side)
     this.websocketGateway.broadcastNewJob(job);
 
-    return { jobId, txHash };
+    return {
+      jobId,
+      txHash,
+      metadataUri: metadataUpload.uri,
+      metadataCid: metadataUpload.cid,
+    };
   }
 
   async findJob(jobId: string) {
@@ -134,4 +159,3 @@ export class JobsService {
     return { success: true, paymentTxHash };
   }
 }
-

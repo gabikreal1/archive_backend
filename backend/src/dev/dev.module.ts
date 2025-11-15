@@ -20,5 +20,3 @@ import { DeliveryEntity } from '../entities/delivery.entity';
   controllers: [DevController],
 })
 export class DevModule {}
-
-

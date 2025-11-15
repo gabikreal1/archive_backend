@@ -1,4 +1,10 @@
-import { IsArray, IsISO8601, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateJobDto {
   @IsString()
@@ -14,5 +20,3 @@ export class CreateJobDto {
   @IsISO8601()
   deadline?: string; // ISO string, converted to Date in service
 }
-
-

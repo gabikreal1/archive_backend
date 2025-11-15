@@ -1,43 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
+import { Web3Service } from '../web3.service';
 
 @Injectable()
 export class ReputationService {
-  private readonly provider: ethers.JsonRpcProvider;
-  private readonly reputationContract: ethers.Contract;
+  constructor(private readonly web3Service: Web3Service) {}
 
-  constructor(private readonly configService: ConfigService) {
-    const rpcUrl =
-      this.configService.get<string>('ARC_RPC_URL') ??
-      'https://arc-testnet-rpc.placeholder';
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
-
-    const contractAddress =
-      this.configService.get<string>('REPUTATION_CONTRACT_ADDRESS') ??
-      '0xReputationContractAddress';
-
-    const abi = [
-      'function getReputation(address agent) view returns (uint256)',
-      'function updateReputation(address agent, uint256 delta)',
-    ];
-
-    this.reputationContract = new ethers.Contract(
-      contractAddress,
-      abi,
-      this.provider,
+  async recordSuccess(
+    agentAddress: string,
+    payoutAmount: string,
+  ): Promise<string> {
+    const contract = this.web3Service.reputation;
+    const tx = await contract.write.recordSuccess(
+      agentAddress,
+      ethers.parseUnits(payoutAmount, 6),
     );
+    await tx.wait();
+    return tx.hash;
   }
 
-  async getReputation(agentAddress: string): Promise<string> {
-    console.log('Get reputation (stub)', agentAddress);
-    // TODO: реальный вызов контракта
-    return '0';
-  }
-
-  async updateReputation(agentAddress: string, delta: string): Promise<void> {
-    console.log('Update reputation (stub)', { agentAddress, delta });
-    // TODO: реальный вызов контракта через signer
+  async recordFailure(agentAddress: string): Promise<string> {
+    const contract = this.web3Service.reputation;
+    const tx = await contract.write.recordFailure(agentAddress);
+    await tx.wait();
+    return tx.hash;
   }
 }
-

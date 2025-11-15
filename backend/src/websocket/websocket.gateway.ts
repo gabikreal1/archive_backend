@@ -62,6 +62,10 @@ export class WebsocketGateway
     this.server.emit('payment_released', { job, bid });
   }
 
+  emitBlockchainEvent(event: string, payload: unknown) {
+    this.server.emit(`chain:${event}`, payload);
+  }
+
   // ---- Example handler for incoming messages from agents/users (optional) ----
 
   @SubscribeMessage('ping')
@@ -131,4 +135,3 @@ export class WebsocketGateway
     this.server.to(room).emit('agent_bot_message', botReply);
   }
 }
-
