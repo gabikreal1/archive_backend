@@ -65,7 +65,8 @@ let AgentsService = AgentsService_1 = class AgentsService {
             'Your goal is to help the user formulate a task that can be executed by downstream agents. ' +
             'Always respond in the SAME language as the user\'s latest message (if the user writes in Russian – answer in Russian, if in English – answer in English, etc.). ' +
             'You conduct a dialog, clarify details (goal, constraints, success criteria, deadlines, budget, etc.). ' +
-            'When the task is clearly defined and can be handed off to execution, you mark it as a ready task. ' +
+            'When the task is clearly defined and can be handed off to execution, you MUST mark it as a ready task. ' +
+            'If the user explicitly confirms that the formulation is correct or asks you to proceed / start / submit the task (e.g. "yes", "correct", "go ahead", "please plan it", "sounds good"), you MUST treat the task as ready and output a non-null task object exactly once for this conversation. ' +
             'IMPORTANT: always respond STRICTLY in JSON with NO extra text: ' +
             '{"reply":"<natural language reply for the user>",' +
             '"task":null} OR ' +
@@ -73,7 +74,7 @@ let AgentsService = AgentsService_1 = class AgentsService {
             '"task":{"description":"<concise final task description based on the ENTIRE conversation>","tags":["tag1","tag2"],"deadline":null}}. ' +
             'The field task.description MUST reflect the whole accumulated context of the conversation, not just the last user message. ' +
             'If you think it is too early to form a task, set "task": null. ' +
-            'If the task is ready – fill in the task object. ' +
+            'If the task is ready – fill in the task object and in your reply clearly tell the user that the task is fixed and will now be processed by the system, so they should wait for executor agents to respond. ' +
             'You MAY suggest tags based on the conversation. ' +
             'The field deadline may be null or an ISO date if the user explicitly provided a deadline.';
         const history = this.getConversationMessages(payload.conversationId);
@@ -89,9 +90,44 @@ let AgentsService = AgentsService_1 = class AgentsService {
             },
         ];
         const response = await this.openai.chat.completions.create({
-            model: 'gpt-4.1-mini',
+            model: 'gpt-4.1',
             messages,
             temperature: 0.3,
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    name: 'sergbot_response',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            reply: { type: 'string' },
+                            task: {
+                                anyOf: [
+                                    { type: 'null' },
+                                    {
+                                        type: 'object',
+                                        additionalProperties: false,
+                                        properties: {
+                                            description: { type: 'string' },
+                                            tags: {
+                                                type: 'array',
+                                                items: { type: 'string' },
+                                            },
+                                            deadline: {
+                                                anyOf: [{ type: 'string' }, { type: 'null' }],
+                                            },
+                                        },
+                                        required: ['description', 'tags', 'deadline'],
+                                    },
+                                ],
+                            },
+                        },
+                        required: ['reply', 'task'],
+                    },
+                },
+            },
         });
         const content = response.choices[0]?.message?.content;
         if (!content) {
@@ -120,6 +156,27 @@ let AgentsService = AgentsService_1 = class AgentsService {
     }
     async handleUserMessage(payload) {
         this.logger.debug(`User message in conversation ${payload.conversationId} from ${payload.userId ?? 'anonymous'}: ${payload.message}`);
+        if (payload.userId) {
+            const existingTask = await this.tasksRepo.findOne({
+                where: {
+                    conversationId: payload.conversationId,
+                    userId: payload.userId,
+                    status: 'PENDING',
+                },
+            });
+            if (existingTask) {
+                return {
+                    conversationId: payload.conversationId,
+                    messageId: `agent-msg-${Date.now()}`,
+                    role: 'assistant',
+                    message: 'Your task has already been submitted to the system. Please wait while executor agents review it and place their bids.',
+                    context: {
+                        sergbotTaskId: existingTask.id,
+                        sergbotTaskStatus: existingTask.status,
+                    },
+                };
+            }
+        }
         this.pushConversationMessage(payload.conversationId, {
             role: 'user',
             content: payload.message,

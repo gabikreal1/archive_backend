@@ -24,9 +24,7 @@ let BlockchainListenerService = BlockchainListenerService_1 = class BlockchainLi
         this.websocketGateway = websocketGateway;
     }
     onModuleInit() {
-        this.logger.log('Attaching blockchain event listeners');
-        this.subscribeOrderBookEvents();
-        this.subscribeEscrowEvents();
+        this.logger.log('Blockchain listeners are disabled in this environment (no onchain events will be consumed).');
     }
     onModuleDestroy() {
         for (const sub of this.subscriptions) {

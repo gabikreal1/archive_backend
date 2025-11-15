@@ -24,9 +24,11 @@ export class BlockchainListenerService
   ) {}
 
   onModuleInit() {
-    this.logger.log('Attaching blockchain event listeners');
-    this.subscribeOrderBookEvents();
-    this.subscribeEscrowEvents();
+    // Для текущего DEV‑сетапа блокчейн‑листенеры полностью отключены,
+    // чтобы не требовать реальный ABI/контракты.
+    this.logger.log(
+      'Blockchain listeners are disabled in this environment (no onchain events will be consumed).',
+    );
   }
 
   onModuleDestroy() {

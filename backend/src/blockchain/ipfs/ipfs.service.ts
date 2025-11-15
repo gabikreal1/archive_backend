@@ -22,12 +22,22 @@ export class IpfsService {
     const secretKey = this.configService.get<string>('PINATA_SECRET_KEY');
 
     if (!apiKey || !secretKey) {
-      throw new Error(
-        'Pinata credentials (PINATA_API_KEY & PINATA_SECRET_KEY) are required to use IpfsService.',
+      this.logger.warn(
+        'Pinata credentials (PINATA_API_KEY & PINATA_SECRET_KEY) are not set. IpfsService is running in DEV/STUB mode.',
       );
+      // Stub‑клиент: генерируем фиктивные CID, чтобы не ломать остальные флоу.
+      this.pinata = {
+        pinJSONToIPFS: async () => ({
+          IpfsHash: `FAKE_JSON_CID_${Date.now()}`,
+        }),
+        pinFileToIPFS: async () => ({
+          IpfsHash: `FAKE_FILE_CID_${Date.now()}`,
+        }),
+      } as unknown as PinataClient;
+    } else {
+      this.pinata = pinataSDK(apiKey, secretKey);
     }
 
-    this.pinata = pinataSDK(apiKey, secretKey);
     this.gatewayBase =
       this.configService.get<string>('IPFS_GATEWAY_URL') ??
       'https://gateway.pinata.cloud/ipfs/';
