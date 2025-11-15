@@ -7,7 +7,10 @@ export declare class AgentsService {
     private readonly tasksRepo;
     private readonly logger;
     private readonly openai?;
+    private readonly conversations;
     constructor(configService: ConfigService, tasksRepo: Repository<SergbotTaskEntity>);
+    private getConversationMessages;
+    private pushConversationMessage;
     private generateSergbotResponse;
     handleUserMessage(payload: AgentUserMessagePayload): Promise<AgentBotMessagePayload>;
 }
