@@ -19,5 +19,3 @@ import { AgentAuthController } from './agent-auth.controller';
   exports: [AgentAuthService],
 })
 export class AgentAuthModule {}
-
-

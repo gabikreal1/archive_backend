@@ -49,5 +49,3 @@ export class AgentAuthController {
     return this.agentAuthService.login(dto.email, dto.password);
   }
 }
-
-

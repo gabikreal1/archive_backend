@@ -31,5 +31,3 @@ export class SergbotTaskEntity {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }
-
-

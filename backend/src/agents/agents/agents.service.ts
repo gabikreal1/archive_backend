@@ -86,7 +86,8 @@ export class AgentsService {
     if (!content) {
       this.logger.warn('Empty response from OpenAI, falling back to stub.');
       return {
-        reply: 'Не удалось получить ответ от SergBot. Попробуйте переформулировать запрос.',
+        reply:
+          'Не удалось получить ответ от SergBot. Попробуйте переформулировать запрос.',
         task: null,
       };
     }
@@ -96,12 +97,13 @@ export class AgentsService {
       if (
         typeof parsed.reply === 'string' &&
         (parsed.task === null ||
-          (parsed.task &&
-            typeof parsed.task.description === 'string'))
+          (parsed.task && typeof parsed.task.description === 'string'))
       ) {
         return parsed;
       }
-      this.logger.warn('SergBot response JSON shape is invalid, using fallback.');
+      this.logger.warn(
+        'SergBot response JSON shape is invalid, using fallback.',
+      );
     } catch (e) {
       this.logger.warn('Failed to parse SergBot JSON response', e as Error);
     }
@@ -134,9 +136,7 @@ export class AgentsService {
 
     if (sergbot.task && payload.userId) {
       const deadlineDate =
-        sergbot.task.deadline != null
-          ? new Date(sergbot.task.deadline)
-          : null;
+        sergbot.task.deadline != null ? new Date(sergbot.task.deadline) : null;
 
       const task = this.tasksRepo.create({
         conversationId: payload.conversationId,
@@ -164,4 +164,3 @@ export class AgentsService {
     };
   }
 }
-

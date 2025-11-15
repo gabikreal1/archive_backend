@@ -41,5 +41,3 @@ export interface AgentBotMessagePayload {
    */
   context?: Record<string, unknown>;
 }
-
-

@@ -8,4 +8,3 @@ import { AgentsModule } from '../agents/agents.module';
   exports: [WebsocketGateway],
 })
 export class WebsocketModule {}
-

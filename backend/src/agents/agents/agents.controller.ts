@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { AgentEntity } from '../../entities/agent.entity';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { WalletService } from '../../circle/wallet/wallet.service';
 
 class CreateExecutorAgentDto {
   @IsString()
@@ -42,6 +43,7 @@ export class ExecutorAgentsController {
     @InjectRepository(AgentEntity)
     private readonly agentsRepo: Repository<AgentEntity>,
     private readonly jwtService: JwtService,
+    private readonly walletService: WalletService,
   ) {}
 
   /**
@@ -70,10 +72,12 @@ export class ExecutorAgentsController {
     // id агента пока генерируем простым способом, позже можно перейти на UUID
     const id = `agent_${Date.now()}`;
 
+    const walletAddress = await this.walletService.getOrCreateAgentWallet(id);
+
     const agent = this.agentsRepo.create({
       id,
       name: dto.name,
-      walletAddress: null,
+      walletAddress,
       capabilities: dto.capabilities ?? null,
       description: dto.description ?? null,
       status: 'ACTIVE',
@@ -97,5 +101,3 @@ export class ExecutorAgentsController {
     };
   }
 }
-
-

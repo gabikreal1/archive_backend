@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrderBookService } from './order-book.service';
 import { Web3Service } from '../web3.service';
+import { IpfsMetadataService } from '../ipfs/metadata.service';
 
 describe('OrderBookService', () => {
   let service: OrderBookService;
@@ -18,6 +19,10 @@ describe('OrderBookService', () => {
             },
             parseEvent: jest.fn(),
           },
+        },
+        {
+          provide: IpfsMetadataService,
+          useValue: { publishBidMetadata: jest.fn() },
         },
       ],
     }).compile();

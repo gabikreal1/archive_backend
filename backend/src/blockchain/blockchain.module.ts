@@ -4,14 +4,18 @@ import { EscrowService } from './escrow/escrow.service';
 import { ReputationService } from './reputation/reputation.service';
 import { Web3Service } from './web3.service';
 import { IpfsService } from './ipfs/ipfs.service';
+import { IpfsMetadataService } from './ipfs/metadata.service';
+import { MetadataController } from './ipfs/metadata.controller';
 import { BlockchainListenerService } from './listeners/blockchain-listener.service';
 import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
   imports: [WebsocketModule],
+  controllers: [MetadataController],
   providers: [
     Web3Service,
     IpfsService,
+    IpfsMetadataService,
     OrderBookService,
     EscrowService,
     ReputationService,
@@ -20,6 +24,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
   exports: [
     Web3Service,
     IpfsService,
+    IpfsMetadataService,
     OrderBookService,
     EscrowService,
     ReputationService,

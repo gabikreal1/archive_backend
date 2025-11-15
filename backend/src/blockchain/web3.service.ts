@@ -6,6 +6,7 @@ import {
   Interface,
   InterfaceAbi,
   JsonRpcProvider,
+  LogDescription,
   Wallet,
 } from 'ethers';
 import { readFileSync } from 'node:fs';
@@ -123,7 +124,7 @@ export class Web3Service {
     contract: ContractBundle,
     receipt: ContractTransactionReceipt | null,
     eventName: string,
-  ) {
+  ): LogDescription | null {
     if (!receipt) {
       return null;
     }

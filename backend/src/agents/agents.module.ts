@@ -7,6 +7,8 @@ import { ExecutorAgentsController } from './agents/agents.controller';
 import { AgentEntity } from '../entities/agent.entity';
 import { SergbotTaskEntity } from '../entities/sergbot-task.entity';
 import { AuthModule } from '../auth/auth.module';
+import { CircleModule } from '../circle/circle.module';
+import { BlockchainModule } from '../blockchain/blockchain.module';
 
 @Module({
   imports: [
@@ -17,10 +19,11 @@ import { AuthModule } from '../auth/auth.module';
       }),
     }),
     AuthModule,
+    CircleModule,
+    BlockchainModule,
   ],
   controllers: [ExecutorAgentsController],
   providers: [AgentsService, ExecutorService],
   exports: [AgentsService, ExecutorService],
 })
 export class AgentsModule {}
-

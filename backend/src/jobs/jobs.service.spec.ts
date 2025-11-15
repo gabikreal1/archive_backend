@@ -7,7 +7,7 @@ import { OrderBookService } from '../blockchain/order-book/order-book.service';
 import { EscrowService } from '../blockchain/escrow/escrow.service';
 import { WalletService } from '../circle/wallet/wallet.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
-import { IpfsService } from '../blockchain/ipfs/ipfs.service';
+import { IpfsMetadataService } from '../blockchain/ipfs/metadata.service';
 
 describe('JobsService', () => {
   let service: JobsService;
@@ -36,7 +36,7 @@ describe('JobsService', () => {
           provide: WebsocketGateway,
           useValue: { emitBlockchainEvent: jest.fn() },
         },
-        { provide: IpfsService, useValue: {} },
+        { provide: IpfsMetadataService, useValue: {} },
       ],
     }).compile();
 

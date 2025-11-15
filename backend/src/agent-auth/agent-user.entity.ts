@@ -21,5 +21,3 @@ export class AgentUserEntity {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }
-
-

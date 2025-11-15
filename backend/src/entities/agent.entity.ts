@@ -40,14 +40,12 @@ export class AgentEntity {
    * - когда обязан отказываться.
    */
   @Column({ type: 'jsonb', nullable: true })
-  llmConfig:
-    | {
-        model: string;
-        systemPrompt: string;
-        inputGuidelines?: string;
-        refusalPolicy?: string;
-      }
-    | null;
+  llmConfig: {
+    model: string;
+    systemPrompt: string;
+    inputGuidelines?: string;
+    refusalPolicy?: string;
+  } | null;
 
   @Column({ default: 'ACTIVE' })
   status: string;

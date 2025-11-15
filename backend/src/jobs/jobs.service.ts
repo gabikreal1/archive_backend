@@ -3,13 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JobEntity, JobStatus } from '../entities/job.entity';
 import { BidEntity } from '../entities/bid.entity';
-import { CreateJobDto } from './dto/create-job.dto';
+import { CreateJobDto, JobDeliverableFormat } from './dto/create-job.dto';
 import { AcceptBidDto } from './dto/accept-bid.dto';
 import { OrderBookService } from '../blockchain/order-book/order-book.service';
 import { EscrowService } from '../blockchain/escrow/escrow.service';
 import { WalletService } from '../circle/wallet/wallet.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
-import { IpfsService } from '../blockchain/ipfs/ipfs.service';
+import { IpfsMetadataService } from '../blockchain/ipfs/metadata.service';
+import { IpfsUploadResult } from '../blockchain/ipfs/ipfs.service';
+import { BidResponseMetadata } from '../blockchain/ipfs/metadata.types';
 
 @Injectable()
 export class JobsService {
@@ -22,27 +24,30 @@ export class JobsService {
     private readonly escrow: EscrowService,
     private readonly walletService: WalletService,
     private readonly websocketGateway: WebsocketGateway,
-    private readonly ipfsService: IpfsService,
+    private readonly metadataService: IpfsMetadataService,
   ) {}
 
   async createJob(userId: string, dto: CreateJobDto) {
     // 1) Resolve user wallet (Circle) and onchain address
     const posterWallet = await this.walletService.getOrCreateUserWallet(userId);
 
-    const jobMetadata = {
-      version: 1,
+    const metadataUpload = await this.metadataService.publishJobMetadata({
+      title: dto.title,
       description: dto.description,
       tags: dto.tags ?? [],
       deadline: dto.deadline ?? null,
       posterWallet,
       createdBy: userId,
-      createdAt: new Date().toISOString(),
-    };
-
-    const metadataUpload = await this.ipfsService.uploadJson(
-      jobMetadata,
-      `job-${Date.now()}`,
-    );
+      requirements: (dto.requirements ?? []).map((requirement) => ({
+        requirement: requirement.requirement,
+        mandatory: requirement.mandatory ?? false,
+      })),
+      deliverableFormat: dto.deliverableFormat ?? JobDeliverableFormat.JSON,
+      additionalContext: dto.additionalContext,
+      referenceLinks: dto.referenceLinks ?? [],
+      attachments: dto.attachments ?? [],
+      pinName: `job-${Date.now()}`,
+    });
 
     // 2) Create job onchain (OrderBook.postJob)
     const { jobId, txHash } = await this.orderBook.postJob({
@@ -129,7 +134,46 @@ export class JobsService {
     // 4) Notify winning agent via WebSocket
     this.websocketGateway.notifyJobAwarded(job, bid);
 
-    return { success: true, escrowTxHash };
+    let bidResponseMetadata:
+      | (IpfsUploadResult & { metadata: BidResponseMetadata })
+      | null = null;
+
+    const shouldPublishResponse =
+      (dto.answers && dto.answers.length > 0) ||
+      !!dto.additionalNotes ||
+      !!dto.contactPreference;
+
+    if (shouldPublishResponse) {
+      const answersArray = dto.answers ?? [];
+      const answersRecord = answersArray.reduce<BidResponseMetadata['answers']>(
+        (acc, answer) => {
+          acc[answer.id] = {
+            question: answer.question,
+            answer: answer.answer,
+          };
+          return acc;
+        },
+        {},
+      );
+
+      bidResponseMetadata = await this.metadataService.publishBidResponse({
+        jobId: job.id,
+        bidId: dto.bidId,
+        answeredBy: userWallet,
+        answers: answersRecord,
+        additionalNotes: dto.additionalNotes,
+        contactPreference: dto.contactPreference,
+        answeredAt: dto.answeredAt,
+        pinName: `bid-response-${Date.now()}`,
+      });
+    }
+
+    return {
+      success: true,
+      escrowTxHash,
+      bidResponseMetadataUri: bidResponseMetadata?.uri,
+      bidResponseMetadataCid: bidResponseMetadata?.cid,
+    };
   }
 
   async approveJob(jobId: string) {

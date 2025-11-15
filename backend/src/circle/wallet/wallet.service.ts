@@ -6,6 +6,8 @@ import { CircleService } from '../circle/circle.service';
 
 @Injectable()
 export class WalletService {
+  private readonly agentKeyPrefix = 'agent:';
+
   constructor(
     @InjectRepository(WalletMappingEntity)
     private readonly walletRepo: Repository<WalletMappingEntity>,
@@ -44,6 +46,20 @@ export class WalletService {
       await this.walletRepo.save(mapping);
     }
     return mapping;
+  }
+
+  private buildAgentOwner(agentId: string): string {
+    return `${this.agentKeyPrefix}${agentId}`;
+  }
+
+  async getOrCreateAgentWallet(agentId: string): Promise<string> {
+    const ownerId = this.buildAgentOwner(agentId);
+    const mapping = await this.getOrCreateMapping(ownerId);
+    return mapping.walletAddress;
+  }
+
+  async getAgentMapping(agentId: string): Promise<WalletMappingEntity> {
+    return this.getOrCreateMapping(this.buildAgentOwner(agentId));
   }
 
   async getUserBalance(userId: string): Promise<{
