@@ -4,5 +4,3 @@ export class AcceptBidDto {
   @IsString()
   bidId: string;
 }
-
-

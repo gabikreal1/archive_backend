@@ -17,10 +17,7 @@ export class WalletController {
 
   @UseGuards(JwtAuthGuard)
   @Post('deposit')
-  async createDeposit(
-    @Req() req: Request,
-    @Body() dto: CreateDepositDto,
-  ) {
+  async createDeposit(@Req() req: Request, @Body() dto: CreateDepositDto) {
     const userId = (req as any).user.userId as string;
     return this.walletService.createDepositSession({
       userId,

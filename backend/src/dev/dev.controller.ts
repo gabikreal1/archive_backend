@@ -43,32 +43,14 @@ export class DevController {
       .where('1=1')
       .execute();
 
-    await this.bidsRepo
-      .createQueryBuilder()
-      .delete()
-      .where('1=1')
-      .execute();
+    await this.bidsRepo.createQueryBuilder().delete().where('1=1').execute();
 
-    await this.jobsRepo
-      .createQueryBuilder()
-      .delete()
-      .where('1=1')
-      .execute();
+    await this.jobsRepo.createQueryBuilder().delete().where('1=1').execute();
 
-    await this.agentsRepo
-      .createQueryBuilder()
-      .delete()
-      .where('1=1')
-      .execute();
+    await this.agentsRepo.createQueryBuilder().delete().where('1=1').execute();
 
-    await this.walletRepo
-      .createQueryBuilder()
-      .delete()
-      .where('1=1')
-      .execute();
+    await this.walletRepo.createQueryBuilder().delete().where('1=1').execute();
 
     return { success: true };
   }
 }
-
-

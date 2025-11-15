@@ -57,7 +57,7 @@ export class CircleService {
       // конфигурация корректна и готова к использованию.
       const entitySecretCiphertext = await generateEntitySecretCiphertext({
         apiKey: this.apiKey as string,
-        entitySecret: this.entitySecret as string,
+        entitySecret: this.entitySecret,
       });
       // Можно залогировать при отладке, но не сохраняем его:
       // console.debug('Generated entitySecretCiphertext', entitySecretCiphertext);

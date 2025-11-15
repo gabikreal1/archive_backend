@@ -39,5 +39,3 @@ export class AuthController {
     return this.authService.getCircleAuthUrl(state);
   }
 }
-
-

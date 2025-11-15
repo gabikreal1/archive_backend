@@ -29,7 +29,13 @@ import { DevModule } from './dev/dev.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'a2a_marketplace',
-      entities: [JobEntity, BidEntity, AgentEntity, DeliveryEntity, WalletMappingEntity],
+      entities: [
+        JobEntity,
+        BidEntity,
+        AgentEntity,
+        DeliveryEntity,
+        WalletMappingEntity,
+      ],
       synchronize: true, // OK for hackathon / dev only
     }),
     BlockchainModule,

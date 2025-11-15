@@ -8,5 +8,3 @@ export class CreateDepositDto {
   @IsString()
   paymentMethod?: string;
 }
-
-

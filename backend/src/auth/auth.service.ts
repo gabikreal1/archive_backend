@@ -42,8 +42,7 @@ export class AuthService {
 
   private getJwtSecret(): string {
     return (
-      this.configService.get<string>('JWT_SECRET') ??
-      'dev-secret-change-me'
+      this.configService.get<string>('JWT_SECRET') ?? 'dev-secret-change-me'
     );
   }
 
@@ -91,5 +90,3 @@ export class AuthService {
     };
   }
 }
-
-

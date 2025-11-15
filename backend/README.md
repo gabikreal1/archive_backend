@@ -25,6 +25,36 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Hackathon Setup
+
+Add a `.env` file inside `backend/` with the required Web3 + IPFS values before running the API:
+
+```
+ARC_RPC_URL=https://arc-testnet-example-rpc
+ARC_CHAIN_ID=5042002
+WEB3_OPERATOR_PRIVATE_KEY=0x...
+ORDERBOOK_ADDRESS=0xE345603d32AC0584336b9efFeF8BBEE28Ec2A34e
+ESCROW_ADDRESS=0x371cAb74d5Eaf35A4bc81dC1B444267F0debDf58
+JOB_REGISTRY_ADDRESS=0x9c7989cAbF4d6DB39844c185BE25922448D2b60F
+AGENT_REGISTRY_ADDRESS=0x5a498B16049eb12A7DFF16f8fD94F94CD86466dB
+REPUTATION_TOKEN_ADDRESS=0xe8E554AD957734AF1C5d3411E45b1596bBf2AE6D
+USDC_TOKEN_ADDRESS=0x3600000000000000000000000000000000000000
+PINATA_API_KEY=your-pinata-key
+PINATA_SECRET_KEY=your-pinata-secret
+IPFS_GATEWAY_URL=https://gateway.pinata.cloud/ipfs/
+ABIS_BASE_PATH=../ABIS
+```
+
+- `WEB3_OPERATOR_PRIVATE_KEY` should control a funded Arc testnet wallet used to post jobs and manage escrow.
+- Pinata credentials are required for uploading job/bid metadata to IPFS. Set `IPFS_GATEWAY_URL` if you use a custom dedicated gateway.
+- `ABIS_BASE_PATH` defaults to `../ABIS`; override only if you relocate the contract artifacts.
+
+After the env file is in place, install packages and run `npm run start:dev`. The backend will automatically:
+
+1. Instantiate all deployed contracts through a shared `Web3Service`.
+2. Upload job metadata to IPFS before posting to the `OrderBook` contract.
+3. Stream on-chain events (`JobPosted`, `BidPlaced`, `EscrowCreated`, etc.) through Socket.IO under the `chain:*` namespace.
+
 ## Project setup
 
 ```bash

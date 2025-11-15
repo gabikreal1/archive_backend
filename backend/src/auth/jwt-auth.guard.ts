@@ -14,7 +14,8 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
 
-    const authHeader = request.headers['authorization'] ?? request.headers['Authorization'];
+    const authHeader =
+      request.headers['authorization'] ?? request.headers['Authorization'];
     if (!authHeader || Array.isArray(authHeader)) {
       throw new UnauthorizedException('Missing Authorization header');
     }
@@ -33,5 +34,3 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 }
-
-

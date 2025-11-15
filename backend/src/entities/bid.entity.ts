@@ -42,5 +42,3 @@ export class BidEntity {
   })
   agent?: AgentEntity | null;
 }
-
-

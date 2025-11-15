@@ -34,5 +34,3 @@ export class AgentEntity {
   @OneToMany(() => DeliveryEntity, (delivery) => delivery.agent)
   deliveries?: DeliveryEntity[];
 }
-
-
