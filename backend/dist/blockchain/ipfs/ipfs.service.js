@@ -29,9 +29,19 @@ let IpfsService = IpfsService_1 = class IpfsService {
         const apiKey = this.configService.get('PINATA_API_KEY');
         const secretKey = this.configService.get('PINATA_SECRET_KEY');
         if (!apiKey || !secretKey) {
-            throw new Error('Pinata credentials (PINATA_API_KEY & PINATA_SECRET_KEY) are required to use IpfsService.');
+            this.logger.warn('Pinata credentials (PINATA_API_KEY & PINATA_SECRET_KEY) are not set. IpfsService is running in DEV/STUB mode.');
+            this.pinata = {
+                pinJSONToIPFS: async () => ({
+                    IpfsHash: `FAKE_JSON_CID_${Date.now()}`,
+                }),
+                pinFileToIPFS: async () => ({
+                    IpfsHash: `FAKE_FILE_CID_${Date.now()}`,
+                }),
+            };
         }
-        this.pinata = (0, sdk_1.default)(apiKey, secretKey);
+        else {
+            this.pinata = (0, sdk_1.default)(apiKey, secretKey);
+        }
         this.gatewayBase =
             this.configService.get('IPFS_GATEWAY_URL') ??
                 'https://gateway.pinata.cloud/ipfs/';
