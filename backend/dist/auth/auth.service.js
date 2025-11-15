@@ -37,8 +37,7 @@ let AuthService = class AuthService {
         });
     }
     getJwtSecret() {
-        return (this.configService.get('JWT_SECRET') ??
-            'dev-secret-change-me');
+        return (this.configService.get('JWT_SECRET') ?? 'dev-secret-change-me');
     }
     getJwtExpiresIn() {
         return this.configService.get('JWT_EXPIRES_IN') ?? '7d';

@@ -8,44 +8,68 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var EscrowService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EscrowService = void 0;
 const common_1 = require("@nestjs/common");
-const config_1 = require("@nestjs/config");
 const ethers_1 = require("ethers");
-let EscrowService = class EscrowService {
-    configService;
-    provider;
-    escrowContract;
-    constructor(configService) {
-        this.configService = configService;
-        const rpcUrl = this.configService.get('ARC_RPC_URL') ??
-            'https://arc-testnet-rpc.placeholder';
-        this.provider = new ethers_1.ethers.JsonRpcProvider(rpcUrl);
-        const contractAddress = this.configService.get('ESCROW_CONTRACT_ADDRESS') ??
-            '0xEscrowContractAddress';
-        const abi = [
-            'event EscrowCreated(string jobId, address poster, address agent, uint256 amount)',
-            'event PaymentReleased(string jobId, address agent, uint256 amount)',
-            'function createEscrow(string jobId, address poster, address agent, uint256 amount)',
-            'function releasePayment(string jobId)',
-        ];
-        this.escrowContract = new ethers_1.ethers.Contract(contractAddress, abi, this.provider);
+const web3_service_1 = require("../web3.service");
+let EscrowService = EscrowService_1 = class EscrowService {
+    web3Service;
+    logger = new common_1.Logger(EscrowService_1.name);
+    constructor(web3Service) {
+        this.web3Service = web3Service;
     }
     async createEscrow(params) {
-        const escrowTxHash = `0xESCROW_TX_${Date.now()}`;
-        console.log('Creating escrow onchain (stub)', params);
-        return { escrowTxHash };
+        const contract = this.web3Service.escrow;
+        const tx = await contract.write.lockFunds(this.toBigInt(params.jobId), params.poster, params.agent, this.parseAmount(params.amount));
+        const receipt = await tx.wait();
+        const parsed = this.web3Service.parseEvent(contract, receipt, 'EscrowCreated');
+        if (!parsed) {
+            this.logger.warn(`EscrowCreated event not found for job ${params.jobId}`);
+        }
+        return { escrowTxHash: tx.hash };
     }
     async releasePayment(params) {
-        const paymentTxHash = `0xPAYMENT_TX_${Date.now()}`;
-        console.log('Releasing payment onchain (stub)', params);
-        return { paymentTxHash };
+        const contract = this.web3Service.escrow;
+        const tx = await contract.write.releasePayment(this.toBigInt(params.jobId));
+        await tx.wait();
+        return { paymentTxHash: tx.hash };
+    }
+    async getEscrow(jobId) {
+        const contract = this.web3Service.escrow;
+        const result = await contract.read.getEscrow(this.toBigInt(jobId));
+        return {
+            user: result.user,
+            agent: result.agent,
+            amount: result.amount.toString(),
+            funded: result.funded,
+            released: result.released,
+            refunded: result.refunded,
+        };
+    }
+    parseAmount(amount) {
+        return ethers_1.ethers.parseUnits(amount, 6);
+    }
+    toBigInt(value) {
+        if (typeof value === 'bigint') {
+            return value;
+        }
+        if (typeof value === 'number') {
+            return BigInt(value);
+        }
+        if (/^0x/i.test(value)) {
+            return BigInt(value);
+        }
+        if (!/^\d+$/.test(value)) {
+            throw new Error(`Value ${value} is not a valid uint256.`);
+        }
+        return BigInt(value);
     }
 };
 exports.EscrowService = EscrowService;
-exports.EscrowService = EscrowService = __decorate([
+exports.EscrowService = EscrowService = EscrowService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [config_1.ConfigService])
+    __metadata("design:paramtypes", [web3_service_1.Web3Service])
 ], EscrowService);
 //# sourceMappingURL=escrow.service.js.map

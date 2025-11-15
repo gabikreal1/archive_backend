@@ -9,6 +9,8 @@ export declare class JobsController {
     createJob(req: Request, dto: CreateJobDto): Promise<{
         jobId: string;
         txHash: string;
+        metadataUri: string;
+        metadataCid: string;
     }>;
     getJob(jobId: string): Promise<import("../entities/job.entity").JobEntity | null>;
     listJobs(status?: JobStatus, tagsRaw?: string): Promise<import("../entities/job.entity").JobEntity[]>;

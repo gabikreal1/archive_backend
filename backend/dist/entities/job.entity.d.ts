@@ -10,6 +10,7 @@ export declare class JobEntity {
     id: string;
     posterWallet: string;
     description: string;
+    metadataUri: string | null;
     tags: string[] | null;
     deadline: Date | null;
     status: JobStatus;

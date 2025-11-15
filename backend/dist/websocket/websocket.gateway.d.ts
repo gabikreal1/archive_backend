@@ -16,6 +16,7 @@ export declare class WebsocketGateway implements OnGatewayConnection, OnGatewayD
     notifyJobAwarded(job: JobEntity, bid: BidEntity): void;
     notifyDeliverySubmitted(job: JobEntity, payload: unknown): void;
     notifyPaymentReleased(job: JobEntity, bid: BidEntity): void;
+    emitBlockchainEvent(event: string, payload: unknown): void;
     handlePing(data: any): {
         event: string;
         data: any;

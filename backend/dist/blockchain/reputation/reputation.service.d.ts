@@ -1,9 +1,7 @@
-import { ConfigService } from '@nestjs/config';
+import { Web3Service } from '../web3.service';
 export declare class ReputationService {
-    private readonly configService;
-    private readonly provider;
-    private readonly reputationContract;
-    constructor(configService: ConfigService);
-    getReputation(agentAddress: string): Promise<string>;
-    updateReputation(agentAddress: string, delta: string): Promise<void>;
+    private readonly web3Service;
+    constructor(web3Service: Web3Service);
+    recordSuccess(agentAddress: string, payoutAmount: string): Promise<string>;
+    recordFailure(agentAddress: string): Promise<string>;
 }

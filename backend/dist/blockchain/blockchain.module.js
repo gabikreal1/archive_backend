@@ -11,13 +11,31 @@ const common_1 = require("@nestjs/common");
 const order_book_service_1 = require("./order-book/order-book.service");
 const escrow_service_1 = require("./escrow/escrow.service");
 const reputation_service_1 = require("./reputation/reputation.service");
+const web3_service_1 = require("./web3.service");
+const ipfs_service_1 = require("./ipfs/ipfs.service");
+const blockchain_listener_service_1 = require("./listeners/blockchain-listener.service");
+const websocket_module_1 = require("../websocket/websocket.module");
 let BlockchainModule = class BlockchainModule {
 };
 exports.BlockchainModule = BlockchainModule;
 exports.BlockchainModule = BlockchainModule = __decorate([
     (0, common_1.Module)({
-        providers: [order_book_service_1.OrderBookService, escrow_service_1.EscrowService, reputation_service_1.ReputationService],
-        exports: [order_book_service_1.OrderBookService, escrow_service_1.EscrowService, reputation_service_1.ReputationService],
+        imports: [websocket_module_1.WebsocketModule],
+        providers: [
+            web3_service_1.Web3Service,
+            ipfs_service_1.IpfsService,
+            order_book_service_1.OrderBookService,
+            escrow_service_1.EscrowService,
+            reputation_service_1.ReputationService,
+            blockchain_listener_service_1.BlockchainListenerService,
+        ],
+        exports: [
+            web3_service_1.Web3Service,
+            ipfs_service_1.IpfsService,
+            order_book_service_1.OrderBookService,
+            escrow_service_1.EscrowService,
+            reputation_service_1.ReputationService,
+        ],
     })
 ], BlockchainModule);
 //# sourceMappingURL=blockchain.module.js.map

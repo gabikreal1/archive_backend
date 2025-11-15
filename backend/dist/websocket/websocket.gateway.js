@@ -46,6 +46,9 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
     notifyPaymentReleased(job, bid) {
         this.server.emit('payment_released', { job, bid });
     }
+    emitBlockchainEvent(event, payload) {
+        this.server.emit(`chain:${event}`, payload);
+    }
     handlePing(data) {
         return { event: 'pong', data };
     }

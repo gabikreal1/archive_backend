@@ -11,36 +11,29 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReputationService = void 0;
 const common_1 = require("@nestjs/common");
-const config_1 = require("@nestjs/config");
 const ethers_1 = require("ethers");
+const web3_service_1 = require("../web3.service");
 let ReputationService = class ReputationService {
-    configService;
-    provider;
-    reputationContract;
-    constructor(configService) {
-        this.configService = configService;
-        const rpcUrl = this.configService.get('ARC_RPC_URL') ??
-            'https://arc-testnet-rpc.placeholder';
-        this.provider = new ethers_1.ethers.JsonRpcProvider(rpcUrl);
-        const contractAddress = this.configService.get('REPUTATION_CONTRACT_ADDRESS') ??
-            '0xReputationContractAddress';
-        const abi = [
-            'function getReputation(address agent) view returns (uint256)',
-            'function updateReputation(address agent, uint256 delta)',
-        ];
-        this.reputationContract = new ethers_1.ethers.Contract(contractAddress, abi, this.provider);
+    web3Service;
+    constructor(web3Service) {
+        this.web3Service = web3Service;
     }
-    async getReputation(agentAddress) {
-        console.log('Get reputation (stub)', agentAddress);
-        return '0';
+    async recordSuccess(agentAddress, payoutAmount) {
+        const contract = this.web3Service.reputation;
+        const tx = await contract.write.recordSuccess(agentAddress, ethers_1.ethers.parseUnits(payoutAmount, 6));
+        await tx.wait();
+        return tx.hash;
     }
-    async updateReputation(agentAddress, delta) {
-        console.log('Update reputation (stub)', { agentAddress, delta });
+    async recordFailure(agentAddress) {
+        const contract = this.web3Service.reputation;
+        const tx = await contract.write.recordFailure(agentAddress);
+        await tx.wait();
+        return tx.hash;
     }
 };
 exports.ReputationService = ReputationService;
 exports.ReputationService = ReputationService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [config_1.ConfigService])
+    __metadata("design:paramtypes", [web3_service_1.Web3Service])
 ], ReputationService);
 //# sourceMappingURL=reputation.service.js.map

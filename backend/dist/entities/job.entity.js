@@ -24,6 +24,7 @@ let JobEntity = class JobEntity {
     id;
     posterWallet;
     description;
+    metadataUri;
     tags;
     deadline;
     status;
@@ -44,6 +45,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'text' }),
     __metadata("design:type", String)
 ], JobEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'metadata_uri', type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], JobEntity.prototype, "metadataUri", void 0);
 __decorate([
     (0, typeorm_1.Column)('text', { array: true, nullable: true }),
     __metadata("design:type", Object)

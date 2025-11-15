@@ -22,6 +22,7 @@ const order_book_service_1 = require("../blockchain/order-book/order-book.servic
 const escrow_service_1 = require("../blockchain/escrow/escrow.service");
 const wallet_service_1 = require("../circle/wallet/wallet.service");
 const websocket_gateway_1 = require("../websocket/websocket.gateway");
+const ipfs_service_1 = require("../blockchain/ipfs/ipfs.service");
 let JobsService = class JobsService {
     jobsRepo;
     bidsRepo;
@@ -29,21 +30,35 @@ let JobsService = class JobsService {
     escrow;
     walletService;
     websocketGateway;
-    constructor(jobsRepo, bidsRepo, orderBook, escrow, walletService, websocketGateway) {
+    ipfsService;
+    constructor(jobsRepo, bidsRepo, orderBook, escrow, walletService, websocketGateway, ipfsService) {
         this.jobsRepo = jobsRepo;
         this.bidsRepo = bidsRepo;
         this.orderBook = orderBook;
         this.escrow = escrow;
         this.walletService = walletService;
         this.websocketGateway = websocketGateway;
+        this.ipfsService = ipfsService;
     }
     async createJob(userId, dto) {
         const posterWallet = await this.walletService.getOrCreateUserWallet(userId);
-        const { jobId, txHash } = await this.orderBook.postJob({
-            poster: posterWallet,
+        const jobMetadata = {
+            version: 1,
             description: dto.description,
             tags: dto.tags ?? [],
-            deadline: dto.deadline ? new Date(dto.deadline).getTime() : undefined,
+            deadline: dto.deadline ?? null,
+            posterWallet,
+            createdBy: userId,
+            createdAt: new Date().toISOString(),
+        };
+        const metadataUpload = await this.ipfsService.uploadJson(jobMetadata, `job-${Date.now()}`);
+        const { jobId, txHash } = await this.orderBook.postJob({
+            description: dto.description,
+            metadataUri: metadataUpload.uri,
+            tags: dto.tags ?? [],
+            deadline: dto.deadline
+                ? Math.floor(new Date(dto.deadline).getTime() / 1000)
+                : 0,
         });
         const job = this.jobsRepo.create({
             id: jobId,
@@ -51,11 +66,17 @@ let JobsService = class JobsService {
             description: dto.description,
             tags: dto.tags ?? null,
             deadline: dto.deadline ? new Date(dto.deadline) : null,
+            metadataUri: metadataUpload.uri,
             status: job_entity_1.JobStatus.OPEN,
         });
         await this.jobsRepo.save(job);
         this.websocketGateway.broadcastNewJob(job);
-        return { jobId, txHash };
+        return {
+            jobId,
+            txHash,
+            metadataUri: metadataUpload.uri,
+            metadataCid: metadataUpload.cid,
+        };
     }
     async findJob(jobId) {
         const job = await this.jobsRepo.findOne({
@@ -132,6 +153,7 @@ exports.JobsService = JobsService = __decorate([
         order_book_service_1.OrderBookService,
         escrow_service_1.EscrowService,
         wallet_service_1.WalletService,
-        websocket_gateway_1.WebsocketGateway])
+        websocket_gateway_1.WebsocketGateway,
+        ipfs_service_1.IpfsService])
 ], JobsService);
 //# sourceMappingURL=jobs.service.js.map
