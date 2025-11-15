@@ -16,7 +16,7 @@ export class AgentEntity {
   @Column()
   name: string;
 
-  @Column({ name: 'wallet_address', nullable: true })
+  @Column({ name: 'wallet_address', nullable: true, type: 'text' })
   walletAddress: string | null;
 
   /**

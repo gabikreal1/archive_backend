@@ -62,9 +62,6 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
         const room = this.getConversationRoom(payload.conversationId);
         client.join(room);
         this.logger.debug(`Client ${client.id} joined conversation ${payload.conversationId}`);
-        client.emit('agent_joined', {
-            conversationId: payload.conversationId,
-        });
     }
     async handleAgentUserMessage(client, payload) {
         if (!payload?.conversationId || !payload?.message) {
@@ -74,10 +71,6 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             return;
         }
         const room = this.getConversationRoom(payload.conversationId);
-        this.server.to(room).emit('agent_user_message', {
-            ...payload,
-            socketId: client.id,
-        });
         const botReply = await this.agentsService.handleUserMessage(payload);
         this.server.to(room).emit('agent_bot_message', botReply);
     }

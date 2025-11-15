@@ -12,7 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { JobEntity } from '../entities/job.entity';
 import { BidEntity } from '../entities/bid.entity';
 import { AgentsService } from '../agents/agents/agents.service';
-import {
+import type {
   AgentJoinPayload,
   AgentUserMessagePayload,
 } from '../agents/agents/agent-messages.types';
@@ -98,10 +98,6 @@ export class WebsocketGateway
     this.logger.debug(
       `Client ${client.id} joined conversation ${payload.conversationId}`,
     );
-
-    client.emit('agent_joined', {
-      conversationId: payload.conversationId,
-    });
   }
 
   /**
@@ -128,16 +124,10 @@ export class WebsocketGateway
 
     const room = this.getConversationRoom(payload.conversationId);
 
-    // 1. Отразим сообщение пользователя всем участникам сессии (фронт может рисовать историю диалога).
-    this.server.to(room).emit('agent_user_message', {
-      ...payload,
-      socketId: client.id,
-    });
-
-    // 2. Передаём сообщение в сервис агента, который решает, что делать (LLM + смартконтракты).
+    // Передаём сообщение в сервис агента, который решает, что делать.
     const botReply = await this.agentsService.handleUserMessage(payload);
 
-    // 3. Шлём ответ бота всем подписчикам этой сессии.
+    // Шлём ответ бота всем подписчикам этой сессии.
     this.server.to(room).emit('agent_bot_message', botReply);
   }
 }

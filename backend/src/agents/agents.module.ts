@@ -6,6 +6,7 @@ import { ExecutorService } from './executor/executor.service';
 import { ExecutorAgentsController } from './agents/agents.controller';
 import { AgentEntity } from '../entities/agent.entity';
 import { SergbotTaskEntity } from '../entities/sergbot-task.entity';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SergbotTaskEntity } from '../entities/sergbot-task.entity';
         secret: process.env.AGENT_JWT_SECRET ?? 'agent-dev-secret-change-me',
       }),
     }),
+    AuthModule,
   ],
   controllers: [ExecutorAgentsController],
   providers: [AgentsService, ExecutorService],

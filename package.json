@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@circle-fin/developer-controlled-wallets": "^9.3.0"
+    "@circle-fin/developer-controlled-wallets": "^9.3.0",
+    "bcryptjs": "^3.0.3"
   }
 }

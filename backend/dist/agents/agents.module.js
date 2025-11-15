@@ -15,6 +15,7 @@ const executor_service_1 = require("./executor/executor.service");
 const agents_controller_1 = require("./agents/agents.controller");
 const agent_entity_1 = require("../entities/agent.entity");
 const sergbot_task_entity_1 = require("../entities/sergbot-task.entity");
+const auth_module_1 = require("../auth/auth.module");
 let AgentsModule = class AgentsModule {
 };
 exports.AgentsModule = AgentsModule;
@@ -27,6 +28,7 @@ exports.AgentsModule = AgentsModule = __decorate([
                     secret: process.env.AGENT_JWT_SECRET ?? 'agent-dev-secret-change-me',
                 }),
             }),
+            auth_module_1.AuthModule,
         ],
         controllers: [agents_controller_1.ExecutorAgentsController],
         providers: [agents_service_1.AgentsService, executor_service_1.ExecutorService],

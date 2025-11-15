@@ -35,7 +35,7 @@ __decorate([
     __metadata("design:type", String)
 ], AgentEntity.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'wallet_address', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'wallet_address', nullable: true, type: 'text' }),
     __metadata("design:type", Object)
 ], AgentEntity.prototype, "walletAddress", void 0);
 __decorate([

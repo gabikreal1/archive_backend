@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { JobEntity } from '../entities/job.entity';
 import { BidEntity } from '../entities/bid.entity';
 import { AgentsService } from '../agents/agents/agents.service';
-import { AgentJoinPayload, AgentUserMessagePayload } from '../agents/agents/agent-messages.types';
+import type { AgentJoinPayload, AgentUserMessagePayload } from '../agents/agents/agent-messages.types';
 export declare class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly agentsService;
     private readonly logger;
