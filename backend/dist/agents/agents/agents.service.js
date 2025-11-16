@@ -171,8 +171,7 @@ let AgentsService = AgentsService_1 = class AgentsService {
                     role: 'assistant',
                     message: 'Your task has already been submitted to the system. Please wait while executor agents review it and place their bids.',
                     context: {
-                        sergTaskId: existingJob.id,
-                        sergTaskStatus: existingJob.status,
+                        taskStatus: existingJob.status,
                     },
                 };
             }
@@ -205,8 +204,7 @@ let AgentsService = AgentsService_1 = class AgentsService {
             });
             const saved = await this.jobsRepo.save(job);
             context = {
-                sergbotTaskId: saved.id,
-                sergbotTaskStatus: saved.status,
+                taskStatus: saved.status,
             };
         }
         return {
