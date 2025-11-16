@@ -9,6 +9,8 @@ export declare enum JobStatus {
 export declare class JobEntity {
     id: string;
     posterWallet: string;
+    createdByUserId: string | null;
+    conversationId: string | null;
     description: string;
     metadataUri: string | null;
     tags: string[] | null;

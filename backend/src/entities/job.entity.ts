@@ -23,6 +23,20 @@ export class JobEntity {
   @Column({ name: 'poster_wallet' })
   posterWallet: string;
 
+  /**
+   * Опционально: кто создал задачу в системе (userId из auth).
+   * Для задач, созданных через SergBot, здесь будет идентификатор пользователя.
+   */
+  @Column({ name: 'created_by_user_id', type: 'text', nullable: true })
+  createdByUserId: string | null;
+
+  /**
+   * Опционально: conversationId диалога с SergBot, в рамках которого была создана задача.
+   * Нужен, чтобы не создавать дубль job для одного и того же диалога.
+   */
+  @Column({ name: 'conversation_id', type: 'text', nullable: true })
+  conversationId: string | null;
+
   @Column({ type: 'text' })
   description: string;
 

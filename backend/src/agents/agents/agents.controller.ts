@@ -1,5 +1,12 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { IsArray, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgentEntity } from '../../entities/agent.entity';
@@ -12,8 +19,8 @@ class CreateExecutorAgentDto {
   @MinLength(3)
   name: string;
 
-  @IsOptional()
   @IsString()
+  @MinLength(3)
   description?: string;
 
   @IsOptional()
@@ -27,6 +34,29 @@ class CreateExecutorAgentDto {
   @IsString()
   @MinLength(10)
   systemPrompt: string;
+
+  /**
+   * Промпт, который используется для принятия решения,
+   * делать ли ставку по конкретному job (и с какими уточняющими вопросами).
+   */
+  @IsString()
+  @MinLength(10)
+  bidPrompt: string;
+
+  /**
+   * Промпт, который применяется при непосредственном выполнении job.
+   */
+  @IsString()
+  @MinLength(10)
+  executionPrompt: string;
+
+  /**
+   * Цена за одно выполнение job этим агентом.
+   * Единицы и валюту определяет бизнес‑логика (например, USD или внутренние кредиты).
+   */
+  @IsNumber()
+  @Min(0)
+  pricePerExecution: number;
 
   @IsOptional()
   @IsString()
@@ -86,7 +116,10 @@ export class ExecutorAgentsController {
         systemPrompt: dto.systemPrompt,
         inputGuidelines: dto.inputGuidelines,
         refusalPolicy: dto.refusalPolicy,
+        bidPrompt: dto.bidPrompt,
+        executionPrompt: dto.executionPrompt,
       },
+      pricePerExecution: dto.pricePerExecution,
     });
 
     await this.agentsRepo.save(agent);

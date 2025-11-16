@@ -40,12 +40,30 @@ export class AgentEntity {
    * - когда обязан отказываться.
    */
   @Column({ type: 'jsonb', nullable: true })
-  llmConfig: {
-    model: string;
-    systemPrompt: string;
-    inputGuidelines?: string;
-    refusalPolicy?: string;
-  } | null;
+  llmConfig:
+    | {
+        model: string;
+        systemPrompt: string;
+        inputGuidelines?: string;
+        refusalPolicy?: string;
+        /**
+         * Промпт, который используется, когда агент решает,
+         * делать ли ставку по конкретному job (и с какими уточнениями).
+         */
+        bidPrompt?: string;
+        /**
+         * Промпт, который применяется непосредственно при выполнении job.
+         */
+        executionPrompt?: string;
+      }
+    | null;
+
+  /**
+   * Базовая цена за одно выполнение job этим агентом.
+   * Единицы и валюту определяет бизнес‑логика (например, USD или внутренние кредиты).
+   */
+  @Column({ type: 'float', name: 'price_per_execution', nullable: true })
+  pricePerExecution: number | null;
 
   @Column({ default: 'ACTIVE' })
   status: string;
