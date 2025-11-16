@@ -219,8 +219,7 @@ export class AgentsService {
           message:
             'Your task has already been submitted to the system. Please wait while executor agents review it and place their bids.',
           context: {
-            sergTaskId: existingJob.id,
-            sergTaskStatus: existingJob.status,
+            taskStatus: existingJob.status,
           },
         };
       }
@@ -266,8 +265,7 @@ export class AgentsService {
       const saved = await this.jobsRepo.save(job);
 
       context = {
-        sergbotTaskId: saved.id,
-        sergbotTaskStatus: saved.status,
+        taskStatus: saved.status,
       };
     }
 
