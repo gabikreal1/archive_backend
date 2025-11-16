@@ -1,11 +1,15 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
 import { Web3Service } from '../web3.service';
 import { WebsocketGateway } from '../../websocket/websocket.gateway';
+import { JobOrchestrationService } from '../../jobs/job-orchestration.service';
 
 interface EventSubscription {
   off: () => void;
@@ -21,14 +25,34 @@ export class BlockchainListenerService
   constructor(
     private readonly web3Service: Web3Service,
     private readonly websocketGateway: WebsocketGateway,
+    @Optional()
+    @Inject(forwardRef(() => JobOrchestrationService))
+    private readonly jobOrchestration?: JobOrchestrationService,
   ) {}
 
   onModuleInit() {
-    // Для текущего DEV‑сетапа блокчейн‑листенеры полностью отключены,
-    // чтобы не требовать реальный ABI/контракты.
-    this.logger.log(
-      'Blockchain listeners are disabled in this environment (no onchain events will be consumed).',
-    );
+    if (this.listenersDisabled()) {
+      if (this.web3Service.isStubProvider) {
+        this.logger.log(
+          'Blockchain listeners are disabled because ARC_RPC_URL is not configured (using placeholder RPC). Set ARC_RPC_URL and DISABLE_BLOCKCHAIN_LISTENERS=false to enable.',
+        );
+      } else {
+        this.logger.log(
+          'Blockchain listeners are disabled (set DISABLE_BLOCKCHAIN_LISTENERS=false to enable).',
+        );
+      }
+      return;
+    }
+    this.logger.log('Starting blockchain listener subscriptions...');
+    try {
+      this.subscribeOrderBookEvents();
+      this.subscribeEscrowEvents();
+    } catch (error) {
+      this.logger.error(
+        'Failed to start blockchain listeners',
+        error as Error,
+      );
+    }
   }
 
   onModuleDestroy() {
@@ -51,6 +75,7 @@ export class BlockchainListenerService
       const payload = { jobId: jobId.toString(), poster };
       this.logger.debug(`JobPosted #${payload.jobId}`);
       this.websocketGateway.emitBlockchainEvent('orderbook.jobPosted', payload);
+      void this.jobOrchestration?.launchAuction(payload.jobId);
     };
 
     const bidPlaced = (
@@ -213,5 +238,18 @@ export class BlockchainListenerService
       { off: () => contract.off('PaymentReleased', paymentReleased) },
       { off: () => contract.off('PaymentRefunded', paymentRefunded) },
     );
+  }
+
+  private listenersDisabled(): boolean {
+    if (this.web3Service.isStubProvider) {
+      return true;
+    }
+    const flag =
+      process.env.DISABLE_BLOCKCHAIN_LISTENERS ??
+      process.env.BLOCKCHAIN_LISTENERS_DISABLED;
+    if (!flag) {
+      return false;
+    }
+    return ['1', 'true', 'yes'].includes(flag.toLowerCase());
   }
 }

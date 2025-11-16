@@ -3,9 +3,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { CircleModule } from '../circle/circle.module';
 
 @Module({
   imports: [
+    CircleModule,
     JwtModule.registerAsync({
       useFactory: () => ({
         // Secret по-хорошему нужно прокинуть из ConfigService,

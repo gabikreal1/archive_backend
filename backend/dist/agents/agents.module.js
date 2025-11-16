@@ -12,10 +12,14 @@ const typeorm_1 = require("@nestjs/typeorm");
 const jwt_1 = require("@nestjs/jwt");
 const agents_service_1 = require("./agents/agents.service");
 const executor_service_1 = require("./executor/executor.service");
+const executor_autopilot_service_1 = require("./executor/executor-autopilot.service");
 const agents_controller_1 = require("./agents/agents.controller");
 const agent_entity_1 = require("../entities/agent.entity");
 const job_entity_1 = require("../entities/job.entity");
 const auth_module_1 = require("../auth/auth.module");
+const circle_module_1 = require("../circle/circle.module");
+const blockchain_module_1 = require("../blockchain/blockchain.module");
+const jobs_module_1 = require("../jobs/jobs.module");
 let AgentsModule = class AgentsModule {
 };
 exports.AgentsModule = AgentsModule;
@@ -29,10 +33,13 @@ exports.AgentsModule = AgentsModule = __decorate([
                 }),
             }),
             auth_module_1.AuthModule,
+            circle_module_1.CircleModule,
+            (0, common_1.forwardRef)(() => blockchain_module_1.BlockchainModule),
+            (0, common_1.forwardRef)(() => jobs_module_1.JobsModule),
         ],
         controllers: [agents_controller_1.ExecutorAgentsController],
-        providers: [agents_service_1.AgentsService, executor_service_1.ExecutorService],
-        exports: [agents_service_1.AgentsService, executor_service_1.ExecutorService],
+        providers: [agents_service_1.AgentsService, executor_service_1.ExecutorService, executor_autopilot_service_1.ExecutorAutopilotService],
+        exports: [agents_service_1.AgentsService, executor_service_1.ExecutorService, executor_autopilot_service_1.ExecutorAutopilotService],
     })
 ], AgentsModule);
 //# sourceMappingURL=agents.module.js.map

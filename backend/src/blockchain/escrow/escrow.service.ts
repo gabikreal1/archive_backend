@@ -21,9 +21,15 @@ export class EscrowService {
 
   constructor(private readonly web3Service: Web3Service) {}
 
+  // NOTE: Direct escrow.createEscrow(...) is no longer used in the dev flow.
+  // We keep the method for backwards compatibility but recommend
+  // interacting with Escrow only through OrderBook.acceptBid/approveDelivery.
   async createEscrow(
     params: CreateEscrowParams,
   ): Promise<{ escrowTxHash: string }> {
+    this.logger.warn(
+      'EscrowService.createEscrow is deprecated in favor of OrderBook.acceptBid; use with caution.',
+    );
     const contract = this.web3Service.escrow;
     const tx = await contract.write.lockFunds(
       this.toBigInt(params.jobId),
@@ -41,6 +47,30 @@ export class EscrowService {
       this.logger.warn(`EscrowCreated event not found for job ${params.jobId}`);
     }
     return { escrowTxHash: tx.hash };
+  }
+
+  /**
+   * Dev helper: ensure the operator wallet has enough ERC20 allowance
+   * for the Escrow contract to pull funds. This is only correct in dev
+   * where OrderBook/Escrow use the shared operator wallet as poster.
+   */
+  async ensureOnchainAllowance(amount: string): Promise<void> {
+    const usdc = this.web3Service.usdc;
+    const escrow = this.web3Service.escrow;
+    const owner = this.web3Service.signer.address;
+    const required = this.parseAmount(amount);
+
+    const current: bigint = await usdc.read.allowance(owner, escrow.address);
+    if (current >= required) {
+      return;
+    }
+
+    const bump = required * BigInt(10); // approve x10 of required amount
+    this.logger.log(
+      `Approving USDC allowance for Escrow: owner=${owner}, spender=${escrow.address}, amount=${bump.toString()}`,
+    );
+    const tx = await usdc.write.approve(escrow.address, bump);
+    await tx.wait();
   }
 
   async releasePayment(

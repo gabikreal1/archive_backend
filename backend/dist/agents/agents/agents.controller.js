@@ -20,12 +20,16 @@ const typeorm_2 = require("typeorm");
 const agent_entity_1 = require("../../entities/agent.entity");
 const jwt_1 = require("@nestjs/jwt");
 const jwt_auth_guard_1 = require("../../auth/jwt-auth.guard");
+const wallet_service_1 = require("../../circle/wallet/wallet.service");
 class CreateExecutorAgentDto {
     name;
     description;
     capabilities;
     model;
     systemPrompt;
+    bidPrompt;
+    executionPrompt;
+    pricePerExecution;
     inputGuidelines;
     refusalPolicy;
 }
@@ -35,8 +39,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateExecutorAgentDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3),
     __metadata("design:type", String)
 ], CreateExecutorAgentDto.prototype, "description", void 0);
 __decorate([
@@ -55,6 +59,21 @@ __decorate([
     __metadata("design:type", String)
 ], CreateExecutorAgentDto.prototype, "systemPrompt", void 0);
 __decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(10),
+    __metadata("design:type", String)
+], CreateExecutorAgentDto.prototype, "bidPrompt", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(10),
+    __metadata("design:type", String)
+], CreateExecutorAgentDto.prototype, "executionPrompt", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateExecutorAgentDto.prototype, "pricePerExecution", void 0);
+__decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
@@ -67,16 +86,19 @@ __decorate([
 let ExecutorAgentsController = class ExecutorAgentsController {
     agentsRepo;
     jwtService;
-    constructor(agentsRepo, jwtService) {
+    walletService;
+    constructor(agentsRepo, jwtService, walletService) {
         this.agentsRepo = agentsRepo;
         this.jwtService = jwtService;
+        this.walletService = walletService;
     }
     async createExecutorAgent(dto) {
         const id = `agent_${Date.now()}`;
+        const walletAddress = await this.walletService.getOrCreateAgentWallet(id);
         const agent = this.agentsRepo.create({
             id,
             name: dto.name,
-            walletAddress: null,
+            walletAddress,
             capabilities: dto.capabilities ?? null,
             description: dto.description ?? null,
             status: 'ACTIVE',
@@ -85,7 +107,10 @@ let ExecutorAgentsController = class ExecutorAgentsController {
                 systemPrompt: dto.systemPrompt,
                 inputGuidelines: dto.inputGuidelines,
                 refusalPolicy: dto.refusalPolicy,
+                bidPrompt: dto.bidPrompt,
+                executionPrompt: dto.executionPrompt,
             },
+            pricePerExecution: dto.pricePerExecution,
         });
         await this.agentsRepo.save(agent);
         return {
@@ -111,6 +136,7 @@ exports.ExecutorAgentsController = ExecutorAgentsController = __decorate([
     (0, common_1.Controller)('executor-agents'),
     __param(0, (0, typeorm_1.InjectRepository)(agent_entity_1.AgentEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        wallet_service_1.WalletService])
 ], ExecutorAgentsController);
 //# sourceMappingURL=agents.controller.js.map

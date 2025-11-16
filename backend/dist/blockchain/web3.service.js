@@ -22,6 +22,7 @@ let Web3Service = class Web3Service {
     logger = new common_1.Logger(Web3Service_1.name);
     provider;
     signer;
+    isStubProvider;
     abiBasePath;
     abiCache = new Map();
     contracts;
@@ -33,10 +34,31 @@ let Web3Service = class Web3Service {
     ];
     constructor(configService) {
         this.configService = configService;
-        const rpcUrl = this.configService.get('ARC_RPC_URL') ??
-            'https://arc-testnet-rpc.placeholder';
+        const defaultRpcUrl = 'https://arc-testnet-rpc.placeholder';
+        const rpcUrl = this.configService.get('ARC_RPC_URL') ?? defaultRpcUrl;
+        this.isStubProvider = rpcUrl === defaultRpcUrl;
         const chainId = Number(this.configService.get('ARC_CHAIN_ID') ?? 5042002);
         this.provider = new ethers_1.JsonRpcProvider(rpcUrl, chainId);
+        const originalResolveName = this.provider.resolveName.bind(this.provider);
+        this.provider.resolveName = (async (name) => {
+            try {
+                return await originalResolveName(name);
+            }
+            catch (error) {
+                if (error &&
+                    typeof error === 'object' &&
+                    error.code === 'UNSUPPORTED_OPERATION' &&
+                    error.operation === 'getEnsAddress') {
+                    this.logger.warn(`ENS resolution attempted on a non‑ENS network for "${name}". Returning null instead.`);
+                    return null;
+                }
+                throw error;
+            }
+        });
+        this.provider.pollingInterval = Number(this.configService.get('WEB3_POLLING_INTERVAL_MS') ?? 15000);
+        if (this.isStubProvider) {
+            this.suppressRpcNoise();
+        }
         let privateKey = this.configService.get('WEB3_OPERATOR_PRIVATE_KEY');
         if (!privateKey) {
             this.logger.warn('WEB3_OPERATOR_PRIVATE_KEY is not set. Web3Service is running in DEV/STUB mode; real blockchain transactions may fail.');
@@ -98,7 +120,7 @@ let Web3Service = class Web3Service {
         if (!this.configService.get(addressKey)) {
             this.logger.warn(`Missing contract address env: ${addressKey}. Using stub address ${address} (DEV mode).`);
         }
-        const abi = abiOverride ?? [];
+        const abi = abiOverride ?? this.loadAbi(abiName);
         const iface = new ethers_1.Interface(abi);
         const read = new ethers_1.Contract(address, abi, this.provider);
         const write = new ethers_1.Contract(address, abi, this.signer);
@@ -120,6 +142,33 @@ let Web3Service = class Web3Service {
         }
         this.abiCache.set(contractName, abiCandidate);
         return abiCandidate;
+    }
+    suppressRpcNoise() {
+        const noopFilterMethods = new Set([
+            'eth_newFilter',
+            'eth_newBlockFilter',
+            'eth_newPendingTransactionFilter',
+            'eth_getFilterChanges',
+            'eth_getFilterLogs',
+            'eth_uninstallFilter',
+        ]);
+        const originalSend = this.provider.send.bind(this.provider);
+        this.provider.send = (async (method, params) => {
+            if (!noopFilterMethods.has(method)) {
+                return originalSend(method, params);
+            }
+            switch (method) {
+                case 'eth_newFilter':
+                case 'eth_newBlockFilter':
+                case 'eth_newPendingTransactionFilter':
+                    return '0x0';
+                case 'eth_uninstallFilter':
+                    return true;
+                default:
+                    return [];
+            }
+        });
+        this.logger.verbose('Stub Web3 provider detected – RPC filter calls will be no-oped to keep logs clean.');
     }
 };
 exports.Web3Service = Web3Service;

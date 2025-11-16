@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
+import { WalletService } from '../circle/wallet/wallet.service';
 
 interface LoginPayload {
   userId: string;
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    private readonly walletService: WalletService,
   ) {}
 
   /**
@@ -24,6 +26,12 @@ export class AuthService {
   async loginWithEmail(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
     const userId = normalizedEmail;
+
+    // При первом логине сразу заводим для пользователя Circle‑кошелёк
+    // и onchain‑адрес, чтобы:
+    // - тот же mapping использовался для escrow‑платежей;
+    // - GET /wallet/balance сразу возвращал корректный баланс.
+    await this.walletService.getOrCreateMapping(userId);
 
     const payload: LoginPayload = { userId };
     const token = await this.jwtService.signAsync<LoginPayload>(payload, {});

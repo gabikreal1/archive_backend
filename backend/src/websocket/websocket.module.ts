@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { WebsocketGateway } from './websocket.gateway';
 import { AgentsModule } from '../agents/agents.module';
 
 @Module({
-  imports: [AgentsModule],
+  imports: [forwardRef(() => AgentsModule)],
   providers: [WebsocketGateway],
   exports: [WebsocketGateway],
 })

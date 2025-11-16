@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const crypto_1 = require("crypto");
 const developer_controlled_wallets_1 = require("@circle-fin/developer-controlled-wallets");
+const ethers_1 = require("ethers");
 let CircleService = class CircleService {
     configService;
     apiKey;
@@ -72,13 +73,37 @@ let CircleService = class CircleService {
             throw err;
         }
     }
-    async getWalletBalance(_circleWalletId) {
+    async getWalletBalance(circleWalletId) {
+        const usdcAddressEnv = this.configService.get('CIRCLE_USDC_TOKEN_ADDRESS') ??
+            this.configService.get('USDC_TOKEN_ADDRESS');
         try {
-            return '0.0';
+            const response = await this.client.getWalletTokenBalance({
+                id: circleWalletId,
+                ...(usdcAddressEnv && { tokenAddresses: [usdcAddressEnv] }),
+                includeAll: !usdcAddressEnv,
+            });
+            const payload = response.data ?? response;
+            const tokenBalances = payload?.tokenBalances ??
+                payload?.data?.tokenBalances ??
+                payload?.balances ??
+                [];
+            if (Array.isArray(tokenBalances) && tokenBalances.length > 0) {
+                const match = tokenBalances.find((b) => usdcAddressEnv
+                    ? b?.token?.tokenAddress?.toLowerCase() ===
+                        usdcAddressEnv.toLowerCase()
+                    : b?.token?.symbol === 'USDC') ?? tokenBalances[0];
+                const amount = match?.amount;
+                if (typeof amount === 'string' && amount.trim()) {
+                    return amount;
+                }
+            }
+            const onchainFallback = await this.getOperatorOnchainUsdcBalance().catch(() => '0.0');
+            return onchainFallback;
         }
         catch (err) {
             console.error('[Circle] getWalletBalance error', err);
-            return '0.0';
+            const onchainFallback = await this.getOperatorOnchainUsdcBalance().catch(() => '0.0');
+            return onchainFallback;
         }
     }
     async createDepositSession(params) {
@@ -86,8 +111,68 @@ let CircleService = class CircleService {
         return `https://pay.circle.com/checkout/mock?walletId=${encodeURIComponent(params.circleWalletId)}&amount=${encodeURIComponent(params.amount)}`;
     }
     async approveEscrowSpend(params) {
-        console.warn('[Circle] approveEscrowSpend is a no-op stub; integrate real escrow approval flow later');
-        return;
+        const usdcAddress = this.configService.get('USDC_TOKEN_ADDRESS') ??
+            this.configService.get('CIRCLE_USDC_TOKEN_ADDRESS');
+        const escrowAddress = this.configService.get('ESCROW_ADDRESS') ??
+            this.configService.get('CIRCLE_ESCROW_ADDRESS');
+        if (!usdcAddress) {
+            throw new Error('USDC_TOKEN_ADDRESS (or CIRCLE_USDC_TOKEN_ADDRESS) is not configured – cannot perform Circle escrow approve');
+        }
+        if (!escrowAddress) {
+            throw new Error('ESCROW_ADDRESS (or CIRCLE_ESCROW_ADDRESS) is not configured – cannot perform Circle escrow approve');
+        }
+        const decimals = 6;
+        const amountBigInt = BigInt(Math.round(Number(params.amount) * 10 ** decimals));
+        const amountRaw = amountBigInt.toString(10);
+        const idempotencyKey = (0, crypto_1.randomUUID)();
+        try {
+            const response = await this.client.createContractExecutionTransaction({
+                idempotencyKey,
+                walletId: params.circleWalletId,
+                contractAddress: usdcAddress,
+                abiFunctionSignature: 'approve(address,uint256)',
+                abiParameters: [escrowAddress, amountRaw],
+                fee: {
+                    type: 'level',
+                    config: {
+                        feeLevel: 'MEDIUM',
+                    },
+                },
+            });
+            const data = response.data;
+            const txId = data?.id ??
+                data?.transaction?.id ??
+                data?.transactions?.[0]?.id ??
+                data?.transactions?.[0]?.transaction?.id;
+            console.log('[Circle] approveEscrowSpend submitted', txId ? `txId=${txId}` : '(no tx id in response)');
+        }
+        catch (err) {
+            console.error('[Circle] approveEscrowSpend error', err);
+            throw err;
+        }
+    }
+    async getOperatorOnchainUsdcBalance() {
+        const rpcUrl = this.configService.get('ARC_RPC_URL') ??
+            'https://arc-testnet-rpc.placeholder';
+        const chainId = Number(this.configService.get('ARC_CHAIN_ID') ?? 5042002);
+        const usdcAddress = this.configService.get('USDC_TOKEN_ADDRESS') ??
+            this.configService.get('CIRCLE_USDC_TOKEN_ADDRESS');
+        const operatorPrivateKey = this.configService.get('WEB3_OPERATOR_PRIVATE_KEY');
+        if (!usdcAddress || !operatorPrivateKey) {
+            return '0.0';
+        }
+        const provider = new ethers_1.JsonRpcProvider(rpcUrl, chainId);
+        const owner = new ethers_1.Wallet(operatorPrivateKey, provider).address;
+        const erc20Abi = [
+            'function balanceOf(address owner) view returns (uint256)',
+            'function decimals() view returns (uint8)',
+        ];
+        const token = new ethers_1.Contract(usdcAddress, erc20Abi, provider);
+        const [rawBalance, decimals] = await Promise.all([
+            token.balanceOf(owner),
+            token.decimals().catch(() => 6),
+        ]);
+        return ethers_1.ethers.formatUnits(rawBalance, decimals);
     }
 };
 exports.CircleService = CircleService;

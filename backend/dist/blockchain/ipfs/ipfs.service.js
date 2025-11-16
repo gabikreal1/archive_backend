@@ -40,7 +40,7 @@ let IpfsService = IpfsService_1 = class IpfsService {
             };
         }
         else {
-            this.pinata = (0, sdk_1.default)(apiKey, secretKey);
+            this.pinata = new sdk_1.default(apiKey, secretKey);
         }
         this.gatewayBase =
             this.configService.get('IPFS_GATEWAY_URL') ??

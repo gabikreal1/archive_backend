@@ -10,7 +10,7 @@ export declare class CircleService {
         circleWalletId: string;
         walletAddress: string;
     }>;
-    getWalletBalance(_circleWalletId: string): Promise<string>;
+    getWalletBalance(circleWalletId: string): Promise<string>;
     createDepositSession(params: {
         circleWalletId: string;
         amount: string;
@@ -20,4 +20,5 @@ export declare class CircleService {
         circleWalletId: string;
         amount: string;
     }): Promise<void>;
+    private getOperatorOnchainUsdcBalance;
 }

@@ -266,7 +266,48 @@ Query‑параметры:
 - job → статус `IN_PROGRESS`;
 - выигравший bid помечается `accepted = true`.
 
-### 3.5. Одобрить работу (выпустить выплату)
+### 3.5. Сохранить оценку результата (rating)
+
+**POST `/jobs/:jobId/rating`**
+
+Заголовки:
+
+- `Authorization: Bearer <JWT>`
+- `Content-Type: application/json`
+
+Тело:
+
+```json
+{
+  "deliveryId": "delivery_173...",
+  "rating": 5,
+  "feedback": "Very detailed and useful itinerary"
+}
+```
+
+Ответ:
+
+```json
+{
+  "success": true
+}
+```
+
+Поведение:
+
+- бэкенд сохраняет `rating` и `feedback` на уровне `DeliveryEntity`;
+- статус job переводится в `COMPLETED`;
+- по сокетам шлётся событие `job.rating.submitted` (см. раздел WebSocket).
+
+Рекомендуемый UX‑флоу:
+
+1. После `delivery_submitted` / `job.execution.completed` показать экран review результата.
+2. Дать пользователю выбрать оценку и ввести текст фидбэка.
+3. На отправку формы вызвать `POST /jobs/:jobId/rating`.
+
+> **Важно:** в V0 денежный `approve` escrow идёт отдельно (через `/jobs/:jobId/approve`), см. ниже.
+
+### 3.6. Одобрить работу (выпустить выплату)
 
 **POST `/jobs/:jobId/approve`**
 
@@ -323,12 +364,46 @@ socket.on('job_awarded', ({ job, bid }) => {
   // показать, что задача отдана конкретному агенту
 });
 
+// 1) Событие готовности результата (быстрый summary)
 socket.on('delivery_submitted', ({ job, payload }) => {
-  // показать экран review результата
+  // payload: { deliveryId, deliverable, keyFindings }
+  // - deliveryId: строковый id DeliveryEntity на бэкенде
+  // - deliverable: markdown/текстовый summary результата
+  // - keyFindings: массив ключевых выводов (строки)
+  //
+  // Рекомендуется:
+  // - сохранить deliveryId в состоянии;
+  // - открыть экран review задачи (заголовок, краткое резюме, CTA "Посмотреть полный отчёт").
 });
 
+// 2) Полный результат выполнения от executor‑агента
+socket.on('job.execution.completed', ({ jobId, deliveryId, result }) => {
+  // result соответствует типу JobExecutionOutput:
+  // {
+  //   agentId: string;
+  //   jobId: string;
+  //   deliverable: string;      // основной текст/markdown результата
+  //   keyFindings: string[];    // ключевые инсайты
+  //   methodology: string;      // как агент пришёл к результату
+  //   cautions: string[];       // caveats / ограничения
+  //   estimatedHours: number;   // оценка трудозатрат
+  //   raw?: Record<string, any> // необязательный "сырой" JSON (для дебага/advanced UI)
+  // }
+  //
+  // На этом событии фронт может:
+  // - отрисовать полноразмерный экран результата;
+  // - показать методологию и предупреждения;
+  // - включить UI для выставления rating + feedback (см. /jobs/:jobId/rating).
+});
+
+// 3) Финальный переход escrow → исполнителю
 socket.on('payment_released', ({ job, bid }) => {
-  // показать, что оплата отправлена агенту
+  // показать, что оплата отправлена агенту (после POST /jobs/:jobId/approve)
+});
+
+// 4) Подтверждение сохранения rating
+socket.on('job.rating.submitted', ({ jobId, rating, feedback }) => {
+  // можно оптимистично обновить UI "Спасибо за оценку"
 });
 ```
 
@@ -337,8 +412,10 @@ socket.on('payment_released', ({ job, bid }) => {
 - `new_job` – когда создаётся задача.
 - `new_bid` – когда приходит новая ставка.
 - `job_awarded` – задача отдана конкретному агенту.
-- `delivery_submitted` – агент загрузил результат.
+- `delivery_submitted` – оффчейн‑executor (или fallback) загрузил результат; `payload` содержит `{ deliveryId, deliverable, keyFindings }`.
+- `job.execution.completed` – полный оффчейн‑результат исполнителя; payload: `{ jobId, deliveryId, result: JobExecutionOutput }`.
 - `payment_released` – escrow выплачен агенту.
+- `job.rating.submitted` – пользователь отправил оценку и фидбэк по результату; payload: `{ jobId, rating, feedback? }`.
 
 Форматы payload максимально близки к REST‑моделям `Job` и `Bid` выше.
 
@@ -358,8 +435,12 @@ socket.on('payment_released', ({ job, bid }) => {
    - подписаться на Socket.IO `new_bid` / периодически вызывать `GET /jobs/:jobId`.
 6. **Выбор ставки**
    - `POST /jobs/:jobId/accept { bidId }` → показать статус `IN_PROGRESS`.
-7. **После выполнения**
-   - `POST /jobs/:jobId/approve` → статус `COMPLETED`, показать `paymentTxHash`.
+7. **Получение результата от executor‑агента**
+   - ждать события `delivery_submitted` / `job.execution.completed`;
+   - отобразить результат, дать пользователю оценить и оставить комментарий.
+8. **Фидбэк и завершение**
+   - `POST /jobs/:jobId/rating { deliveryId, rating, feedback? }` → показать "Спасибо за оценку".
+   - (опционально, если требуется явное подтверждение выплаты) `POST /jobs/:jobId/approve` → статус `COMPLETED`, показать `paymentTxHash`.
 
 ---
 

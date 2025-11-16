@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { Contract, ContractTransactionReceipt, Interface, JsonRpcProvider, Wallet } from 'ethers';
+import { Contract, ContractTransactionReceipt, Interface, JsonRpcProvider, LogDescription, Wallet } from 'ethers';
 type ContractKey = 'orderBook' | 'escrow' | 'jobRegistry' | 'agentRegistry' | 'reputation' | 'usdc';
 export interface ContractBundle {
     address: string;
@@ -12,6 +12,7 @@ export declare class Web3Service {
     private readonly logger;
     readonly provider: JsonRpcProvider;
     readonly signer: Wallet;
+    readonly isStubProvider: boolean;
     private readonly abiBasePath;
     private readonly abiCache;
     private readonly contracts;
@@ -24,8 +25,9 @@ export declare class Web3Service {
     get agentRegistry(): ContractBundle;
     get reputation(): ContractBundle;
     get usdc(): ContractBundle;
-    parseEvent(contract: ContractBundle, receipt: ContractTransactionReceipt | null, eventName: string): import("ethers").LogDescription | null;
+    parseEvent(contract: ContractBundle, receipt: ContractTransactionReceipt | null, eventName: string): LogDescription | null;
     private bootstrapContract;
     private loadAbi;
+    private suppressRpcNoise;
 }
 export {};

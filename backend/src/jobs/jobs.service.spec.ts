@@ -12,6 +12,7 @@ import { WalletService } from '../circle/wallet/wallet.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { IpfsMetadataService } from '../blockchain/ipfs/metadata.service';
 import { AcceptBidDto } from './dto/accept-bid.dto';
+import { JobOrchestrationService } from './job-orchestration.service';
 
 const createRepoMock = () => ({
   create: jest.fn(),
@@ -41,6 +42,11 @@ describe('JobsService', () => {
     notifyPaymentReleased: jest.Mock;
   };
   let metadata: { publishJobMetadata: jest.Mock };
+  let jobOrchestration: {
+    launchAuction: jest.Mock;
+    selectExecutor: jest.Mock;
+    submitRating: jest.Mock;
+  };
 
   beforeEach(async () => {
     jobsRepo = createRepoMock();
@@ -58,6 +64,11 @@ describe('JobsService', () => {
       notifyPaymentReleased: jest.fn(),
     };
     metadata = { publishJobMetadata: jest.fn() };
+    jobOrchestration = {
+      launchAuction: jest.fn(),
+      selectExecutor: jest.fn(),
+      submitRating: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -69,6 +80,7 @@ describe('JobsService', () => {
         { provide: WalletService, useValue: wallet },
         { provide: WebsocketGateway, useValue: websocket },
         { provide: IpfsMetadataService, useValue: metadata },
+        { provide: JobOrchestrationService, useValue: jobOrchestration },
       ],
     }).compile();
 

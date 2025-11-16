@@ -7,7 +7,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JobEntity } from '../entities/job.entity';
 import { BidEntity } from '../entities/bid.entity';
@@ -30,7 +30,10 @@ export class WebsocketGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    @Inject(forwardRef(() => AgentsService))
+    private readonly agentsService: AgentsService,
+  ) {}
 
   handleConnection(client: Socket) {
     this.logger.debug(`Client connected: ${client.id}`);
@@ -64,6 +67,51 @@ export class WebsocketGateway
 
   emitBlockchainEvent(event: string, payload: unknown) {
     this.server.emit(`chain:${event}`, payload);
+  }
+
+  broadcastJobAuctionStarted(
+    jobId: string,
+    payload: { deadline: number },
+  ): void {
+    this.server.emit('job.auction.started', {
+      jobId,
+      ...payload,
+    });
+  }
+
+  broadcastJobBid(jobId: string, bid: unknown): void {
+    this.server.emit('job.auction.bid', { jobId, bid });
+  }
+
+  broadcastJobRecommendations(
+    jobId: string,
+    payload: { totalBids: number; recommendations: unknown },
+  ): void {
+    this.server.emit('job.auction.recommendations', {
+      jobId,
+      ...payload,
+    });
+  }
+
+  broadcastExecutorSelection(
+    jobId: string,
+    payload: Record<string, unknown>,
+  ): void {
+    this.server.emit('job.executor.selected', { jobId, ...payload });
+  }
+
+  broadcastExecutionResult(
+    jobId: string,
+    payload: Record<string, unknown>,
+  ): void {
+    this.server.emit('job.execution.completed', { jobId, ...payload });
+  }
+
+  broadcastJobRating(
+    jobId: string,
+    payload: { rating: number; feedback?: string },
+  ): void {
+    this.server.emit('job.rating.submitted', { jobId, ...payload });
   }
 
   // ---- Example handler for incoming messages from agents/users (optional) ----

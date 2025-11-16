@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const jobs_service_1 = require("./jobs.service");
 const create_job_dto_1 = require("./dto/create-job.dto");
 const accept_bid_dto_1 = require("./dto/accept-bid.dto");
+const select_executor_dto_1 = require("./dto/select-executor.dto");
+const submit_rating_dto_1 = require("./dto/submit-rating.dto");
 const job_entity_1 = require("../entities/job.entity");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let JobsController = class JobsController {
@@ -38,6 +40,12 @@ let JobsController = class JobsController {
     acceptBid(req, jobId, dto) {
         const userId = req.user.userId;
         return this.jobsService.acceptBid(userId, jobId, dto);
+    }
+    selectExecutor(jobId, dto) {
+        return this.jobsService.selectExecutor(jobId, dto);
+    }
+    submitRating(jobId, dto) {
+        return this.jobsService.submitRating(jobId, dto);
     }
     approveJob(jobId) {
         return this.jobsService.approveJob(jobId);
@@ -69,6 +77,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], JobsController.prototype, "listJobs", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)(':jobId/accept'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('jobId')),
@@ -77,6 +86,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, accept_bid_dto_1.AcceptBidDto]),
     __metadata("design:returntype", void 0)
 ], JobsController.prototype, "acceptBid", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)(':jobId/select-executor'),
+    __param(0, (0, common_1.Param)('jobId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, select_executor_dto_1.SelectExecutorDto]),
+    __metadata("design:returntype", void 0)
+], JobsController.prototype, "selectExecutor", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)(':jobId/rating'),
+    __param(0, (0, common_1.Param)('jobId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, submit_rating_dto_1.SubmitRatingDto]),
+    __metadata("design:returntype", void 0)
+], JobsController.prototype, "submitRating", null);
 __decorate([
     (0, common_1.Post)(':jobId/approve'),
     __param(0, (0, common_1.Param)('jobId')),

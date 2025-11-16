@@ -49,6 +49,30 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
     emitBlockchainEvent(event, payload) {
         this.server.emit(`chain:${event}`, payload);
     }
+    broadcastJobAuctionStarted(jobId, payload) {
+        this.server.emit('job.auction.started', {
+            jobId,
+            ...payload,
+        });
+    }
+    broadcastJobBid(jobId, bid) {
+        this.server.emit('job.auction.bid', { jobId, bid });
+    }
+    broadcastJobRecommendations(jobId, payload) {
+        this.server.emit('job.auction.recommendations', {
+            jobId,
+            ...payload,
+        });
+    }
+    broadcastExecutorSelection(jobId, payload) {
+        this.server.emit('job.executor.selected', { jobId, ...payload });
+    }
+    broadcastExecutionResult(jobId, payload) {
+        this.server.emit('job.execution.completed', { jobId, ...payload });
+    }
+    broadcastJobRating(jobId, payload) {
+        this.server.emit('job.rating.submitted', { jobId, ...payload });
+    }
     handlePing(data) {
         return { event: 'pong', data };
     }
@@ -112,6 +136,7 @@ exports.WebsocketGateway = WebsocketGateway = WebsocketGateway_1 = __decorate([
             origin: '*',
         },
     }),
+    __param(0, (0, common_1.Inject)((0, common_1.forwardRef)(() => agents_service_1.AgentsService))),
     __metadata("design:paramtypes", [agents_service_1.AgentsService])
 ], WebsocketGateway);
 //# sourceMappingURL=websocket.gateway.js.map

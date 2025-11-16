@@ -12,12 +12,14 @@ const jwt_1 = require("@nestjs/jwt");
 const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
 const jwt_auth_guard_1 = require("./jwt-auth.guard");
+const circle_module_1 = require("../circle/circle.module");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
 exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            circle_module_1.CircleModule,
             jwt_1.JwtModule.registerAsync({
                 useFactory: () => ({
                     secret: process.env.JWT_SECRET ?? 'dev-secret-change-me',

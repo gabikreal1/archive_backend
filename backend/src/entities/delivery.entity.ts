@@ -25,6 +25,12 @@ export class DeliveryEntity {
   @Column({ name: 'result_data', type: 'jsonb', nullable: true })
   resultData: unknown | null;
 
+  @Column({ type: 'int', nullable: true })
+  rating: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  feedback: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

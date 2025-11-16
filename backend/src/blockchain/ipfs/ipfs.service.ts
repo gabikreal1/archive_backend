@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import pinataSDK from '@pinata/sdk';
 import axios from 'axios';
 import { Readable } from 'node:stream';
-type PinataClient = ReturnType<typeof pinataSDK>;
+type PinataCtor = typeof pinataSDK & (new (...args: any[]) => any);
+type PinataClient = InstanceType<PinataCtor>;
 
 export interface IpfsUploadResult {
   cid: string;
@@ -35,7 +36,8 @@ export class IpfsService {
         }),
       } as unknown as PinataClient;
     } else {
-      this.pinata = pinataSDK(apiKey, secretKey);
+      // Pinata SDK expects to be instantiated as a class/constructor.
+      this.pinata = new (pinataSDK as PinataCtor)(apiKey, secretKey);
     }
 
     this.gatewayBase =

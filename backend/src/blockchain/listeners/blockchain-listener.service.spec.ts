@@ -1,6 +1,7 @@
 import { BlockchainListenerService } from './blockchain-listener.service';
 import { WebsocketGateway } from '../../websocket/websocket.gateway';
 import { ContractBundle, Web3Service } from '../web3.service';
+import { JobOrchestrationService } from '../../jobs/job-orchestration.service';
 
 describe('BlockchainListenerService', () => {
   const buildService = () => {
@@ -24,9 +25,14 @@ describe('BlockchainListenerService', () => {
       emitBlockchainEvent: jest.fn(),
     } as unknown as WebsocketGateway;
 
+    const jobOrchestrationMock = {
+      launchAuction: jest.fn(),
+    } as unknown as JobOrchestrationService;
+
     const service = new BlockchainListenerService(
       web3ServiceMock,
       websocketGatewayMock,
+      jobOrchestrationMock,
     );
 
     return { service, contract, websocketGatewayMock };

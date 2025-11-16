@@ -20,6 +20,7 @@ let AgentEntity = class AgentEntity {
     capabilities;
     description;
     llmConfig;
+    pricePerExecution;
     status;
     createdAt;
     bids;
@@ -50,6 +51,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
     __metadata("design:type", Object)
 ], AgentEntity.prototype, "llmConfig", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', name: 'price_per_execution', nullable: true }),
+    __metadata("design:type", Object)
+], AgentEntity.prototype, "pricePerExecution", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: 'ACTIVE' }),
     __metadata("design:type", String)

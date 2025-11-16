@@ -17,6 +17,7 @@ export declare class EscrowService {
     createEscrow(params: CreateEscrowParams): Promise<{
         escrowTxHash: string;
     }>;
+    ensureOnchainAllowance(amount: string): Promise<void>;
     releasePayment(params: ReleasePaymentParams): Promise<{
         paymentTxHash: string;
     }>;

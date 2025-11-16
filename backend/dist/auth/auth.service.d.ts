@@ -1,12 +1,14 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { WalletService } from '../circle/wallet/wallet.service';
 interface LoginPayload {
     userId: string;
 }
 export declare class AuthService {
     private readonly configService;
     private readonly jwtService;
-    constructor(configService: ConfigService, jwtService: JwtService);
+    private readonly walletService;
+    constructor(configService: ConfigService, jwtService: JwtService, walletService: WalletService);
     loginWithEmail(email: string): Promise<{
         accessToken: string;
         userId: string;

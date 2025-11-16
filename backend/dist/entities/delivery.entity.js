@@ -19,6 +19,8 @@ let DeliveryEntity = class DeliveryEntity {
     agentId;
     proofUrl;
     resultData;
+    rating;
+    feedback;
     createdAt;
     job;
     agent;
@@ -44,6 +46,14 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'result_data', type: 'jsonb', nullable: true }),
     __metadata("design:type", Object)
 ], DeliveryEntity.prototype, "resultData", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], DeliveryEntity.prototype, "rating", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], DeliveryEntity.prototype, "feedback", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)

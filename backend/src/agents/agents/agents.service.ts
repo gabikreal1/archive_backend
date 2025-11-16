@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import {
   AgentBotMessagePayload,
   AgentUserMessagePayload,
@@ -8,6 +8,8 @@ import OpenAI from 'openai';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JobEntity, JobStatus } from '../../entities/job.entity';
+import { JobsService } from '../../jobs/jobs.service';
+import { CreateJobDto } from '../../jobs/dto/create-job.dto';
 
 interface SergbotTaskDraft {
   description: string;
@@ -35,6 +37,8 @@ export class AgentsService {
     private readonly configService: ConfigService,
     @InjectRepository(JobEntity)
     private readonly jobsRepo: Repository<JobEntity>,
+    @Inject(forwardRef(() => JobsService))
+    private readonly jobsService: JobsService,
   ) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
@@ -219,7 +223,7 @@ export class AgentsService {
           messageId: `agent-msg-${Date.now()}`,
           role: 'assistant',
           message:
-            'Your task has already been submitted to the system. Please wait while executor agents review it and place their bids.',
+            'Your task has already been submitted to the system. Please wait while the system assigns an agent.',
           context: {
             taskStatus: existingJob.status,
           },
@@ -245,27 +249,29 @@ export class AgentsService {
     let context: Record<string, unknown> | undefined;
 
     if (sergbot.task && payload.userId) {
-      const deadlineDate =
-        sergbot.task.deadline != null ? new Date(sergbot.task.deadline) : null;
+      const deadlineIso =
+        sergbot.task.deadline != null ? sergbot.task.deadline : undefined;
 
-      const jobId = `job_${Date.now()}`;
-
-      const job = this.jobsRepo.create({
-        id: jobId,
-        posterWallet: '0xSYSTEM_SERGBOT', // временный placeholder, пока нет onchain‑связки
-        createdByUserId: payload.userId,
-        conversationId: payload.conversationId,
+      // Use the shared JobsService pipeline (IPFS + OrderBook + DB)
+      const dto: CreateJobDto = {
+        title: sergbot.task.description.slice(0, 200),
         description: sergbot.task.description,
-        metadataUri: null,
-        tags: sergbot.task.tags ?? null,
-        deadline: deadlineDate,
-        status: JobStatus.OPEN,
-      });
+        tags: sergbot.task.tags ?? [],
+        deadline: deadlineIso,
+      };
 
-      const saved = await this.jobsRepo.save(job);
+      const result = await this.jobsService.createJob(
+        payload.userId,
+        dto,
+        { conversationId: payload.conversationId },
+      );
+
+      this.logger.debug(
+        `Created job from SergBot conversation ${payload.conversationId}: jobId=${result.jobId}, txHash=${result.txHash}`,
+      );
 
       context = {
-        taskStatus: saved.status,
+        taskStatus: JobStatus.OPEN,
       };
     }
 

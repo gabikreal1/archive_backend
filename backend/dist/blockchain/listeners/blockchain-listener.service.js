@@ -8,23 +8,45 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var BlockchainListenerService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BlockchainListenerService = void 0;
 const common_1 = require("@nestjs/common");
 const web3_service_1 = require("../web3.service");
 const websocket_gateway_1 = require("../../websocket/websocket.gateway");
+const job_orchestration_service_1 = require("../../jobs/job-orchestration.service");
 let BlockchainListenerService = BlockchainListenerService_1 = class BlockchainListenerService {
     web3Service;
     websocketGateway;
+    jobOrchestration;
     logger = new common_1.Logger(BlockchainListenerService_1.name);
     subscriptions = [];
-    constructor(web3Service, websocketGateway) {
+    constructor(web3Service, websocketGateway, jobOrchestration) {
         this.web3Service = web3Service;
         this.websocketGateway = websocketGateway;
+        this.jobOrchestration = jobOrchestration;
     }
     onModuleInit() {
-        this.logger.log('Blockchain listeners are disabled in this environment (no onchain events will be consumed).');
+        if (this.listenersDisabled()) {
+            if (this.web3Service.isStubProvider) {
+                this.logger.log('Blockchain listeners are disabled because ARC_RPC_URL is not configured (using placeholder RPC). Set ARC_RPC_URL and DISABLE_BLOCKCHAIN_LISTENERS=false to enable.');
+            }
+            else {
+                this.logger.log('Blockchain listeners are disabled (set DISABLE_BLOCKCHAIN_LISTENERS=false to enable).');
+            }
+            return;
+        }
+        this.logger.log('Starting blockchain listener subscriptions...');
+        try {
+            this.subscribeOrderBookEvents();
+            this.subscribeEscrowEvents();
+        }
+        catch (error) {
+            this.logger.error('Failed to start blockchain listeners', error);
+        }
     }
     onModuleDestroy() {
         for (const sub of this.subscriptions) {
@@ -42,6 +64,7 @@ let BlockchainListenerService = BlockchainListenerService_1 = class BlockchainLi
             const payload = { jobId: jobId.toString(), poster };
             this.logger.debug(`JobPosted #${payload.jobId}`);
             this.websocketGateway.emitBlockchainEvent('orderbook.jobPosted', payload);
+            void this.jobOrchestration?.launchAuction(payload.jobId);
         };
         const bidPlaced = (jobId, bidId, bidder, price) => {
             const payload = {
@@ -62,6 +85,15 @@ let BlockchainListenerService = BlockchainListenerService_1 = class BlockchainLi
             };
             this.logger.debug(`BidAccepted job ${payload.jobId}`);
             this.websocketGateway.emitBlockchainEvent('orderbook.bidAccepted', payload);
+        };
+        const bidResponseSubmitted = (jobId, bidId, responseURI) => {
+            const payload = {
+                jobId: jobId.toString(),
+                bidId: bidId.toString(),
+                responseUri: responseURI,
+            };
+            this.logger.debug(`BidResponseSubmitted job ${payload.jobId} bid ${payload.bidId}`);
+            this.websocketGateway.emitBlockchainEvent('orderbook.bidResponseSubmitted', payload);
         };
         const deliverySubmitted = (jobId, bidId, proofHash) => {
             const payload = {
@@ -84,8 +116,9 @@ let BlockchainListenerService = BlockchainListenerService_1 = class BlockchainLi
         contract.on('BidPlaced', bidPlaced);
         contract.on('BidAccepted', bidAccepted);
         contract.on('DeliverySubmitted', deliverySubmitted);
+        contract.on('BidResponseSubmitted', bidResponseSubmitted);
         contract.on('JobApproved', jobApproved);
-        this.subscriptions.push({ off: () => contract.off('JobPosted', jobPosted) }, { off: () => contract.off('BidPlaced', bidPlaced) }, { off: () => contract.off('BidAccepted', bidAccepted) }, { off: () => contract.off('DeliverySubmitted', deliverySubmitted) }, { off: () => contract.off('JobApproved', jobApproved) });
+        this.subscriptions.push({ off: () => contract.off('JobPosted', jobPosted) }, { off: () => contract.off('BidPlaced', bidPlaced) }, { off: () => contract.off('BidAccepted', bidAccepted) }, { off: () => contract.off('DeliverySubmitted', deliverySubmitted) }, { off: () => contract.off('BidResponseSubmitted', bidResponseSubmitted) }, { off: () => contract.off('JobApproved', jobApproved) });
     }
     subscribeEscrowEvents() {
         const contract = this.web3Service.escrow.read;
@@ -123,11 +156,25 @@ let BlockchainListenerService = BlockchainListenerService_1 = class BlockchainLi
         contract.on('PaymentRefunded', paymentRefunded);
         this.subscriptions.push({ off: () => contract.off('EscrowCreated', escrowCreated) }, { off: () => contract.off('PaymentReleased', paymentReleased) }, { off: () => contract.off('PaymentRefunded', paymentRefunded) });
     }
+    listenersDisabled() {
+        if (this.web3Service.isStubProvider) {
+            return true;
+        }
+        const flag = process.env.DISABLE_BLOCKCHAIN_LISTENERS ??
+            process.env.BLOCKCHAIN_LISTENERS_DISABLED;
+        if (!flag) {
+            return false;
+        }
+        return ['1', 'true', 'yes'].includes(flag.toLowerCase());
+    }
 };
 exports.BlockchainListenerService = BlockchainListenerService;
 exports.BlockchainListenerService = BlockchainListenerService = BlockchainListenerService_1 = __decorate([
     (0, common_1.Injectable)(),
+    __param(2, (0, common_1.Optional)()),
+    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => job_orchestration_service_1.JobOrchestrationService))),
     __metadata("design:paramtypes", [web3_service_1.Web3Service,
-        websocket_gateway_1.WebsocketGateway])
+        websocket_gateway_1.WebsocketGateway,
+        job_orchestration_service_1.JobOrchestrationService])
 ], BlockchainListenerService);
 //# sourceMappingURL=blockchain-listener.service.js.map

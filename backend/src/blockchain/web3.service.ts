@@ -32,6 +32,7 @@ export class Web3Service {
   private readonly logger = new Logger(Web3Service.name);
   readonly provider: JsonRpcProvider;
   readonly signer: Wallet;
+  readonly isStubProvider: boolean;
 
   private readonly abiBasePath: string;
   private readonly abiCache = new Map<string, InterfaceAbi>();
@@ -47,14 +48,55 @@ export class Web3Service {
   constructor(private readonly configService: ConfigService) {
     // --- DEV‑friendly bootstrap: do not hard‑fail when envs are missing ---
 
+    const defaultRpcUrl = 'https://arc-testnet-rpc.placeholder';
     const rpcUrl =
-      this.configService.get<string>('ARC_RPC_URL') ??
-      'https://arc-testnet-rpc.placeholder';
+      this.configService.get<string>('ARC_RPC_URL') ?? defaultRpcUrl;
+    this.isStubProvider = rpcUrl === defaultRpcUrl;
 
     const chainId = Number(
       this.configService.get<string>('ARC_CHAIN_ID') ?? 5042002,
     );
     this.provider = new JsonRpcProvider(rpcUrl, chainId);
+
+    // Ethers v6 will attempt to use ENS resolution (resolveName -> getEnsAddress)
+    // whenever something that looks like a name (e.g. "foo.eth") is passed in.
+    //
+    // Our ARC network (chainId 5042002) does not support ENS, so these calls
+    // surface as unhandled `UNSUPPORTED_OPERATION: network does not support ENS`
+    // errors. This started happening after dependency updates, even though our
+    // code does not intentionally use ENS.
+    //
+    // To make the backend robust on non‑ENS networks, we wrap `resolveName`
+    // for *this* provider instance and gracefully fall back to `null` when
+    // ENS is not available. Any callers that truly require ENS can still
+    // detect the `null` return value and handle it explicitly.
+    const originalResolveName = this.provider.resolveName.bind(this.provider);
+    this.provider.resolveName = (async (name: string) => {
+      try {
+        return await originalResolveName(name);
+      } catch (error: any) {
+        if (
+          error &&
+          typeof error === 'object' &&
+          (error as { code?: string }).code === 'UNSUPPORTED_OPERATION' &&
+          (error as { operation?: string }).operation === 'getEnsAddress'
+        ) {
+          this.logger.warn(
+            `ENS resolution attempted on a non‑ENS network for "${name}". Returning null instead.`,
+          );
+          return null;
+        }
+        throw error;
+      }
+    }) as (typeof this.provider)['resolveName'];
+    // Уменьшаем частоту поллинга, чтобы не спамить RPC (особенно на dev RPC с лимитами).
+    // Значение в миллисекундах; 15000 ≈ 1 запрос в 15 секунд.
+    (this.provider as any).pollingInterval = Number(
+      this.configService.get<string>('WEB3_POLLING_INTERVAL_MS') ?? 15000,
+    );
+    if (this.isStubProvider) {
+      this.suppressRpcNoise();
+    }
 
     let privateKey = this.configService.get<string>(
       'WEB3_OPERATOR_PRIVATE_KEY',
@@ -159,7 +201,10 @@ export class Web3Service {
       );
     }
 
-    const abi = abiOverride ?? [];
+    // If no ABI override is provided (e.g. for ERC20), load the ABI from the ABIS folder.
+    // This "re‑enables" full onchain functionality – contracts will expose their methods
+    // like postJob / placeBid / etc. instead of being empty stubs.
+    const abi = abiOverride ?? this.loadAbi(abiName);
     const iface = new Interface(abi);
     const read = new Contract(address, abi, this.provider);
     const write = new Contract(address, abi, this.signer);
@@ -185,5 +230,42 @@ export class Web3Service {
     }
     this.abiCache.set(contractName, abiCandidate);
     return abiCandidate;
+  }
+
+  private suppressRpcNoise() {
+    const noopFilterMethods = new Set([
+      'eth_newFilter',
+      'eth_newBlockFilter',
+      'eth_newPendingTransactionFilter',
+      'eth_getFilterChanges',
+      'eth_getFilterLogs',
+      'eth_uninstallFilter',
+    ]);
+
+    const originalSend = this.provider.send.bind(this.provider);
+
+    this.provider.send = (async (
+      method: string,
+      params: Array<unknown>,
+    ): Promise<any> => {
+      if (!noopFilterMethods.has(method)) {
+        return originalSend(method, params);
+      }
+
+      switch (method) {
+        case 'eth_newFilter':
+        case 'eth_newBlockFilter':
+        case 'eth_newPendingTransactionFilter':
+          return '0x0';
+        case 'eth_uninstallFilter':
+          return true;
+        default:
+          return [];
+      }
+    }) as typeof this.provider.send;
+
+    this.logger.verbose(
+      'Stub Web3 provider detected – RPC filter calls will be no-oped to keep logs clean.',
+    );
   }
 }

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ContractTransactionResponse, ethers } from 'ethers';
 import { IpfsMetadataService } from '../ipfs/metadata.service';
 import type {
@@ -115,6 +116,18 @@ export interface OnchainJobState {
   bids: OnchainBid[];
 }
 
+export interface EnrichedOnchainBid extends OnchainBid {
+  // Full offchain metadata for this bid (questions, methodology, etc.)
+  metadata?: import('../ipfs/metadata.types').BidMetadata;
+}
+
+export interface OnchainJobStateWithBidMetadata extends Omit<
+  OnchainJobState,
+  'bids'
+> {
+  bids: EnrichedOnchainBid[];
+}
+
 export interface OnchainDispute {
   disputeId: string;
   jobId: string;
@@ -174,11 +187,18 @@ export interface ResolveDisputeParams {
 @Injectable()
 export class OrderBookService {
   private readonly logger = new Logger(OrderBookService.name);
+  private readonly minWriteIntervalMs: number;
+  private lastWriteAt = 0;
 
   constructor(
     private readonly web3Service: Web3Service,
     private readonly metadataService: IpfsMetadataService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.minWriteIntervalMs = Number(
+      this.configService.get<string>('WEB3_WRITE_INTERVAL_MS') ?? 15000,
+    );
+  }
 
   private get orderBookContract(): ContractBundle {
     return this.web3Service.orderBook;
@@ -195,6 +215,7 @@ export class OrderBookService {
   async postJob(
     params: PostJobParams,
   ): Promise<{ jobId: string; txHash: string }> {
+    await this.rateLimitWrite();
     const contract = this.orderBookContract;
     const writer = this.orderBookWrite;
     const deadline = BigInt(params.deadline ?? 0);
@@ -243,9 +264,50 @@ export class OrderBookService {
     };
   }
 
+  /**
+   * Convenience helper: returns onchain job state and, for every bid,
+   * fetches and attaches the full offchain BidMetadata from IPFS.
+   *
+   * This lets callers work with a single enriched object instead of
+   * manually resolving metadataURI for each bid.
+   */
+  async getJobWithBidMetadata(
+    jobId: string,
+  ): Promise<OnchainJobStateWithBidMetadata> {
+    const baseJob = await this.getJob(jobId);
+
+    const enrichedBids: EnrichedOnchainBid[] = await Promise.all(
+      baseJob.bids.map(async (bid) => {
+        if (!bid.metadataURI) {
+          return { ...bid };
+        }
+
+        try {
+          const metadata =
+            await this.metadataService.fetchBidMetadata(bid.metadataURI);
+          return { ...bid, metadata };
+        } catch (error) {
+          this.logger.warn(
+            `Failed to fetch bid metadata from ${bid.metadataURI} for bid ${bid.id}: ${
+              (error as Error).message
+            }`,
+          );
+          // Return bid without metadata if IPFS fetch/parsing fails
+          return { ...bid };
+        }
+      }),
+    );
+
+    return {
+      ...baseJob,
+      bids: enrichedBids,
+    };
+  }
+
   async placeBid(
     params: PlaceBidParams,
   ): Promise<{ bidId: string; txHash: string; metadataUri: string }> {
+    await this.rateLimitWrite();
     const contract = this.orderBookContract;
     const tx = await this.orderBookWrite.placeBid(
       this.toBigInt(params.jobId),
@@ -389,6 +451,7 @@ export class OrderBookService {
   async approveDelivery(
     jobId: string | number | bigint,
   ): Promise<{ txHash: string }> {
+    await this.rateLimitWrite();
     const tx = await this.orderBookWrite.approveDelivery(this.toBigInt(jobId));
     await tx.wait();
     return { txHash: tx.hash };
@@ -398,6 +461,7 @@ export class OrderBookService {
     params: RaiseDisputeParams,
   ): Promise<{ disputeId: string; txHash: string }> {
     const contract = this.orderBookContract;
+    await this.rateLimitWrite();
     const tx = await this.orderBookWrite.raiseDispute(
       this.toBigInt(params.jobId),
       params.reasonUri,
@@ -420,6 +484,7 @@ export class OrderBookService {
   async submitEvidence(
     params: SubmitEvidenceParams,
   ): Promise<{ txHash: string }> {
+    await this.rateLimitWrite();
     const tx = await this.orderBookWrite.submitEvidence(
       this.toBigInt(params.disputeId),
       params.evidenceUri,
@@ -431,6 +496,7 @@ export class OrderBookService {
   async resolveDispute(
     params: ResolveDisputeParams,
   ): Promise<{ txHash: string }> {
+    await this.rateLimitWrite();
     const tx = await this.orderBookWrite.resolveDispute(
       this.toBigInt(params.disputeId),
       params.resolution,
@@ -443,6 +509,7 @@ export class OrderBookService {
   async refundJob(
     jobId: string | number | bigint,
   ): Promise<{ txHash: string }> {
+    await this.rateLimitWrite();
     const tx = await this.orderBookWrite.refundJob(this.toBigInt(jobId));
     await tx.wait();
     return { txHash: tx.hash };
@@ -521,5 +588,19 @@ export class OrderBookService {
 
   private hashUri(uri: string): string {
     return ethers.keccak256(ethers.toUtf8Bytes(uri));
+  }
+
+  private async rateLimitWrite(): Promise<void> {
+    if (this.minWriteIntervalMs <= 0 || this.web3Service.isStubProvider) {
+      return;
+    }
+    const now = Date.now();
+    const earliest = this.lastWriteAt + this.minWriteIntervalMs;
+    if (earliest > now) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, earliest - now),
+      );
+    }
+    this.lastWriteAt = Date.now();
   }
 }

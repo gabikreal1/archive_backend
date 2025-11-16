@@ -21,6 +21,7 @@ let EscrowService = EscrowService_1 = class EscrowService {
         this.web3Service = web3Service;
     }
     async createEscrow(params) {
+        this.logger.warn('EscrowService.createEscrow is deprecated in favor of OrderBook.acceptBid; use with caution.');
         const contract = this.web3Service.escrow;
         const tx = await contract.write.lockFunds(this.toBigInt(params.jobId), params.poster, params.agent, this.parseAmount(params.amount));
         const receipt = await tx.wait();
@@ -29,6 +30,20 @@ let EscrowService = EscrowService_1 = class EscrowService {
             this.logger.warn(`EscrowCreated event not found for job ${params.jobId}`);
         }
         return { escrowTxHash: tx.hash };
+    }
+    async ensureOnchainAllowance(amount) {
+        const usdc = this.web3Service.usdc;
+        const escrow = this.web3Service.escrow;
+        const owner = this.web3Service.signer.address;
+        const required = this.parseAmount(amount);
+        const current = await usdc.read.allowance(owner, escrow.address);
+        if (current >= required) {
+            return;
+        }
+        const bump = required * BigInt(10);
+        this.logger.log(`Approving USDC allowance for Escrow: owner=${owner}, spender=${escrow.address}, amount=${bump.toString()}`);
+        const tx = await usdc.write.approve(escrow.address, bump);
+        await tx.wait();
     }
     async releasePayment(params) {
         const contract = this.web3Service.escrow;

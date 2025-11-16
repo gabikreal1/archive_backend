@@ -11,8 +11,11 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const jobs_service_1 = require("./jobs.service");
 const jobs_controller_1 = require("./jobs.controller");
+const job_orchestration_service_1 = require("./job-orchestration.service");
+const agents_module_1 = require("../agents/agents.module");
 const job_entity_1 = require("../entities/job.entity");
 const bid_entity_1 = require("../entities/bid.entity");
+const delivery_entity_1 = require("../entities/delivery.entity");
 const blockchain_module_1 = require("../blockchain/blockchain.module");
 const circle_module_1 = require("../circle/circle.module");
 const websocket_module_1 = require("../websocket/websocket.module");
@@ -23,14 +26,16 @@ exports.JobsModule = JobsModule;
 exports.JobsModule = JobsModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([job_entity_1.JobEntity, bid_entity_1.BidEntity]),
-            blockchain_module_1.BlockchainModule,
+            typeorm_1.TypeOrmModule.forFeature([job_entity_1.JobEntity, bid_entity_1.BidEntity, delivery_entity_1.DeliveryEntity]),
+            (0, common_1.forwardRef)(() => blockchain_module_1.BlockchainModule),
             circle_module_1.CircleModule,
-            websocket_module_1.WebsocketModule,
+            (0, common_1.forwardRef)(() => websocket_module_1.WebsocketModule),
             auth_module_1.AuthModule,
+            (0, common_1.forwardRef)(() => agents_module_1.AgentsModule),
         ],
-        providers: [jobs_service_1.JobsService],
+        providers: [jobs_service_1.JobsService, job_orchestration_service_1.JobOrchestrationService],
         controllers: [jobs_controller_1.JobsController],
+        exports: [jobs_service_1.JobsService, job_orchestration_service_1.JobOrchestrationService],
     })
 ], JobsModule);
 //# sourceMappingURL=jobs.module.js.map

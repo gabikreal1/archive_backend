@@ -9,14 +9,86 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AcceptBidDto = void 0;
+exports.AcceptBidDto = exports.ContactPreferenceDto = exports.BidResponseAnswerDto = exports.ContactPreferenceMethod = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+var ContactPreferenceMethod;
+(function (ContactPreferenceMethod) {
+    ContactPreferenceMethod["EMAIL"] = "email";
+    ContactPreferenceMethod["PHONE"] = "phone";
+    ContactPreferenceMethod["WALLET"] = "wallet";
+    ContactPreferenceMethod["OFFCHAIN"] = "offchain";
+})(ContactPreferenceMethod || (exports.ContactPreferenceMethod = ContactPreferenceMethod = {}));
+class BidResponseAnswerDto {
+    id;
+    question;
+    answer;
+}
+exports.BidResponseAnswerDto = BidResponseAnswerDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], BidResponseAnswerDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], BidResponseAnswerDto.prototype, "question", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], BidResponseAnswerDto.prototype, "answer", void 0);
+class ContactPreferenceDto {
+    method;
+    value;
+    verified;
+}
+exports.ContactPreferenceDto = ContactPreferenceDto;
+__decorate([
+    (0, class_validator_1.IsEnum)(ContactPreferenceMethod),
+    __metadata("design:type", String)
+], ContactPreferenceDto.prototype, "method", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ContactPreferenceDto.prototype, "value", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], ContactPreferenceDto.prototype, "verified", void 0);
 class AcceptBidDto {
     bidId;
+    answeredAt;
+    answers;
+    additionalNotes;
+    contactPreference;
 }
 exports.AcceptBidDto = AcceptBidDto;
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], AcceptBidDto.prototype, "bidId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AcceptBidDto.prototype, "answeredAt", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => BidResponseAnswerDto),
+    __metadata("design:type", Array)
+], AcceptBidDto.prototype, "answers", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AcceptBidDto.prototype, "additionalNotes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => ContactPreferenceDto),
+    __metadata("design:type", ContactPreferenceDto)
+], AcceptBidDto.prototype, "contactPreference", void 0);
 //# sourceMappingURL=accept-bid.dto.js.map

@@ -15,7 +15,7 @@ let WebsocketModule = class WebsocketModule {
 exports.WebsocketModule = WebsocketModule;
 exports.WebsocketModule = WebsocketModule = __decorate([
     (0, common_1.Module)({
-        imports: [agents_module_1.AgentsModule],
+        imports: [(0, common_1.forwardRef)(() => agents_module_1.AgentsModule)],
         providers: [websocket_gateway_1.WebsocketGateway],
         exports: [websocket_gateway_1.WebsocketGateway],
     })

@@ -4,9 +4,16 @@ import { CircleService } from '../circle/circle.service';
 export declare class WalletService {
     private readonly walletRepo;
     private readonly circleService;
+    private readonly agentKeyPrefix;
+    private readonly logger;
+    private readonly devAgentWalletAddress?;
+    private readonly devAgentCircleWalletId;
     constructor(walletRepo: Repository<WalletMappingEntity>, circleService: CircleService);
     getOrCreateUserWallet(userId: string): Promise<string>;
     getOrCreateMapping(userId: string): Promise<WalletMappingEntity>;
+    private buildAgentOwner;
+    getOrCreateAgentWallet(agentId: string): Promise<string>;
+    getAgentMapping(agentId: string): Promise<WalletMappingEntity>;
     getUserBalance(userId: string): Promise<{
         walletAddress: string;
         usdcBalance: string;
@@ -19,4 +26,6 @@ export declare class WalletService {
         depositUrl: string;
     }>;
     approveEscrowSpend(userId: string, amount: string): Promise<void>;
+    private shouldUseDevAgentWallet;
+    private deriveDevAgentWalletAddress;
 }

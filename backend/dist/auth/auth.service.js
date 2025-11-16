@@ -14,16 +14,20 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const crypto_1 = require("crypto");
 const jwt_1 = require("@nestjs/jwt");
+const wallet_service_1 = require("../circle/wallet/wallet.service");
 let AuthService = class AuthService {
     configService;
     jwtService;
-    constructor(configService, jwtService) {
+    walletService;
+    constructor(configService, jwtService, walletService) {
         this.configService = configService;
         this.jwtService = jwtService;
+        this.walletService = walletService;
     }
     async loginWithEmail(email) {
         const normalizedEmail = email.trim().toLowerCase();
         const userId = normalizedEmail;
+        await this.walletService.getOrCreateMapping(userId);
         const payload = { userId };
         const token = await this.jwtService.signAsync(payload, {});
         return {
@@ -69,6 +73,7 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [config_1.ConfigService,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        wallet_service_1.WalletService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

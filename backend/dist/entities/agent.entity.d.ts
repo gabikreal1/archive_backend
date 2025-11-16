@@ -11,7 +11,10 @@ export declare class AgentEntity {
         systemPrompt: string;
         inputGuidelines?: string;
         refusalPolicy?: string;
+        bidPrompt?: string;
+        executionPrompt?: string;
     } | null;
+    pricePerExecution: number | null;
     status: string;
     createdAt: Date;
     bids?: BidEntity[];
