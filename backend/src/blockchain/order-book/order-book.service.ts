@@ -3,6 +3,7 @@ import { ContractTransactionResponse, ethers } from 'ethers';
 import { IpfsMetadataService } from '../ipfs/metadata.service';
 import type {
   BidMetadataInput,
+  BidResponseMetadataInput,
   DeliveryProofMetadataInput,
 } from '../ipfs/metadata.types';
 import { ContractBundle, Web3Service } from '../web3.service';
@@ -58,7 +59,11 @@ interface OrderBookWriteContract {
     deliveryTimeSeconds: bigint,
     metadataUri: string,
   ): Promise<ContractTransactionResponse>;
-  acceptBid(jobId: bigint, bidId: bigint): Promise<ContractTransactionResponse>;
+  acceptBid(
+    jobId: bigint,
+    bidId: bigint,
+    responseUri: string,
+  ): Promise<ContractTransactionResponse>;
   submitDelivery(
     jobId: bigint,
     proofHash: string,
@@ -139,6 +144,8 @@ export interface PlaceBidWithMetadataParams {
 export interface AcceptBidParams {
   jobId: string | number | bigint;
   bidId: string | number | bigint;
+  responseUri?: string;
+  responseMetadata?: Omit<BidResponseMetadataInput, 'jobId' | 'bidId'>;
 }
 
 export interface SubmitDeliveryParams {
@@ -283,13 +290,46 @@ export class OrderBookService {
     };
   }
 
-  async acceptBid(params: AcceptBidParams): Promise<{ txHash: string }> {
+  async acceptBid(
+    params: AcceptBidParams,
+  ): Promise<{
+    txHash: string;
+    responseUri?: string;
+    responseCid?: string;
+  }> {
+    const jobId = this.toBigInt(params.jobId);
+    const bidId = this.toBigInt(params.bidId);
+
+    let responseUpload: Awaited<
+      ReturnType<typeof this.metadataService.publishBidResponse>
+    > | null = null;
+
+    if (params.responseMetadata) {
+      responseUpload = await this.metadataService.publishBidResponse({
+        ...params.responseMetadata,
+        jobId: jobId.toString(),
+        bidId: bidId.toString(),
+        pinName:
+          params.responseMetadata.pinName ??
+          `bid-response-${jobId.toString()}-${bidId.toString()}-${Date.now()}`,
+      });
+    }
+
+    const finalResponseUri =
+      params.responseUri ?? responseUpload?.uri ?? '';
+
     const tx = await this.orderBookWrite.acceptBid(
-      this.toBigInt(params.jobId),
-      this.toBigInt(params.bidId),
+      jobId,
+      bidId,
+      finalResponseUri,
     );
     await tx.wait();
-    return { txHash: tx.hash };
+
+    return {
+      txHash: tx.hash,
+      ...(finalResponseUri && { responseUri: finalResponseUri }),
+      ...(responseUpload && { responseCid: responseUpload.cid }),
+    };
   }
 
   async submitDelivery(params: SubmitDeliveryParams): Promise<{

@@ -88,6 +88,25 @@ export class BlockchainListenerService
       );
     };
 
+    const bidResponseSubmitted = (
+      jobId: bigint,
+      bidId: bigint,
+      responseURI: string,
+    ) => {
+      const payload = {
+        jobId: jobId.toString(),
+        bidId: bidId.toString(),
+        responseUri: responseURI,
+      };
+      this.logger.debug(
+        `BidResponseSubmitted job ${payload.jobId} bid ${payload.bidId}`,
+      );
+      this.websocketGateway.emitBlockchainEvent(
+        'orderbook.bidResponseSubmitted',
+        payload,
+      );
+    };
+
     const deliverySubmitted = (
       jobId: bigint,
       bidId: bigint,
@@ -121,6 +140,7 @@ export class BlockchainListenerService
     contract.on('BidPlaced', bidPlaced);
     contract.on('BidAccepted', bidAccepted);
     contract.on('DeliverySubmitted', deliverySubmitted);
+    contract.on('BidResponseSubmitted', bidResponseSubmitted);
     contract.on('JobApproved', jobApproved);
 
     this.subscriptions.push(
@@ -128,6 +148,7 @@ export class BlockchainListenerService
       { off: () => contract.off('BidPlaced', bidPlaced) },
       { off: () => contract.off('BidAccepted', bidAccepted) },
       { off: () => contract.off('DeliverySubmitted', deliverySubmitted) },
+      { off: () => contract.off('BidResponseSubmitted', bidResponseSubmitted) },
       { off: () => contract.off('JobApproved', jobApproved) },
     );
   }

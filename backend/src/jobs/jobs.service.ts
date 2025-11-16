@@ -5,12 +5,14 @@ import { JobEntity, JobStatus } from '../entities/job.entity';
 import { BidEntity } from '../entities/bid.entity';
 import { CreateJobDto, JobDeliverableFormat } from './dto/create-job.dto';
 import { AcceptBidDto } from './dto/accept-bid.dto';
-import { OrderBookService } from '../blockchain/order-book/order-book.service';
+import {
+  OrderBookService,
+  AcceptBidParams,
+} from '../blockchain/order-book/order-book.service';
 import { EscrowService } from '../blockchain/escrow/escrow.service';
 import { WalletService } from '../circle/wallet/wallet.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { IpfsMetadataService } from '../blockchain/ipfs/metadata.service';
-import { IpfsUploadResult } from '../blockchain/ipfs/ipfs.service';
 import { BidResponseMetadata } from '../blockchain/ipfs/metadata.types';
 
 @Injectable()
@@ -134,14 +136,12 @@ export class JobsService {
     // 4) Notify winning agent via WebSocket
     this.websocketGateway.notifyJobAwarded(job, bid);
 
-    let bidResponseMetadata:
-      | (IpfsUploadResult & { metadata: BidResponseMetadata })
-      | null = null;
-
     const shouldPublishResponse =
       (dto.answers && dto.answers.length > 0) ||
       !!dto.additionalNotes ||
       !!dto.contactPreference;
+
+    let responseMetadataInput: AcceptBidParams['responseMetadata'];
 
     if (shouldPublishResponse) {
       const answersArray = dto.answers ?? [];
@@ -156,23 +156,29 @@ export class JobsService {
         {},
       );
 
-      bidResponseMetadata = await this.metadataService.publishBidResponse({
-        jobId: job.id,
-        bidId: dto.bidId,
+      responseMetadataInput = {
         answeredBy: userWallet,
         answers: answersRecord,
         additionalNotes: dto.additionalNotes,
         contactPreference: dto.contactPreference,
         answeredAt: dto.answeredAt,
         pinName: `bid-response-${Date.now()}`,
-      });
+      };
     }
+
+    const { txHash: acceptBidTxHash, responseUri, responseCid } =
+      await this.orderBook.acceptBid({
+        jobId: job.id,
+        bidId: dto.bidId,
+        responseMetadata: responseMetadataInput,
+      });
 
     return {
       success: true,
       escrowTxHash,
-      bidResponseMetadataUri: bidResponseMetadata?.uri,
-      bidResponseMetadataCid: bidResponseMetadata?.cid,
+      acceptBidTxHash,
+      bidResponseMetadataUri: responseUri,
+      bidResponseMetadataCid: responseCid,
     };
   }
 
