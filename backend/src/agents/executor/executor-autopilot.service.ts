@@ -242,6 +242,14 @@ export class ExecutorAutopilotService {
       },
     };
 
+    const debugOnchainId =
+      ((candidate.metadata ?? {}) as Record<string, unknown>)
+        .onchainBidId ?? null;
+    this.logger.debug(
+      `[Autopilot] Built candidate for job ${job.id}: ` +
+        `agentId=${agent.id}, candidateId=${candidate.id}, onchainBidId=${debugOnchainId}`,
+    );
+
     // Ensure the agent wallet exists ahead of time so that a future onchain bid
     // or delivery submission can be executed without additional latency.
     await this.executorService.ensureAgentWallet(agent.id);

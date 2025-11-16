@@ -159,6 +159,10 @@ let ExecutorAutopilotService = ExecutorAutopilotService_1 = class ExecutorAutopi
                 ...(onchainBidId && { onchainBidId }),
             },
         };
+        const debugOnchainId = (candidate.metadata ?? {})
+            .onchainBidId ?? null;
+        this.logger.debug(`[Autopilot] Built candidate for job ${job.id}: ` +
+            `agentId=${agent.id}, candidateId=${candidate.id}, onchainBidId=${debugOnchainId}`);
         await this.executorService.ensureAgentWallet(agent.id);
         return candidate;
     }

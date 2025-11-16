@@ -12,12 +12,16 @@ const typeorm_1 = require("@nestjs/typeorm");
 const circle_service_1 = require("./circle/circle.service");
 const wallet_service_1 = require("./wallet/wallet.service");
 const wallet_mapping_entity_1 = require("../entities/wallet-mapping.entity");
+const blockchain_module_1 = require("../blockchain/blockchain.module");
 let CircleModule = class CircleModule {
 };
 exports.CircleModule = CircleModule;
 exports.CircleModule = CircleModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([wallet_mapping_entity_1.WalletMappingEntity])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([wallet_mapping_entity_1.WalletMappingEntity]),
+            (0, common_1.forwardRef)(() => blockchain_module_1.BlockchainModule),
+        ],
         providers: [circle_service_1.CircleService, wallet_service_1.WalletService],
         exports: [wallet_service_1.WalletService],
     })

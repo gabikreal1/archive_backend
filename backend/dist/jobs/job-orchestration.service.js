@@ -95,6 +95,10 @@ let JobOrchestrationService = JobOrchestrationService_1 = class JobOrchestration
             return;
         }
         state.bids.set(bid.id, bid);
+        const meta = (bid.metadata ?? {});
+        const onchainBidId = meta.onchainBidId;
+        this.logger.debug(`[Autopilot] Registered candidate bid for job ${jobId}: ` +
+            `candidateId=${bid.id}, onchainBidId=${onchainBidId ?? 'null'}`);
         this.websocketGateway.broadcastJobBid(jobId, bid);
     }
     async finalizeAuction(jobId) {
@@ -202,16 +206,8 @@ let JobOrchestrationService = JobOrchestrationService_1 = class JobOrchestration
             this.logger.warn(`triggerExecutionForAcceptedBid: job ${jobId} not found`);
             return;
         }
-        const state = this.auctions.get(jobId);
-        let candidateId;
-        if (state) {
-            const candidate = Array.from(state.bids.values()).find((bid) => {
-                const meta = (bid.metadata ?? {});
-                const metaOnchainBidId = meta.onchainBidId;
-                return metaOnchainBidId === onchainBidId || bid.id === onchainBidId;
-            });
-            candidateId = candidate?.id;
-        }
+        const candidate = await this.findCandidateForOnchainBid(jobId, onchainBidId);
+        const candidateId = candidate?.id;
         if (candidateId) {
             try {
                 await this.selectExecutor(jobId, candidateId);
@@ -278,6 +274,25 @@ let JobOrchestrationService = JobOrchestrationService_1 = class JobOrchestration
             .catch((error) => {
             this.logger.warn(`Failed to submit stub onchain delivery for job ${jobId}, bid ${onchainBidId}: ${error.message}`);
         });
+    }
+    async findCandidateForOnchainBid(jobId, onchainBidId, maxWaitMs = 15_000) {
+        const started = Date.now();
+        const pollIntervalMs = 500;
+        while (Date.now() - started <= maxWaitMs) {
+            const state = this.auctions.get(jobId);
+            if (state) {
+                const candidate = Array.from(state.bids.values()).find((bid) => {
+                    const meta = (bid.metadata ?? {});
+                    const metaOnchainBidId = meta.onchainBidId;
+                    return metaOnchainBidId === onchainBidId || bid.id === onchainBidId;
+                });
+                if (candidate) {
+                    return candidate;
+                }
+            }
+            await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        }
+        return null;
     }
     async submitRating(jobId, dto) {
         const delivery = await this.deliveriesRepo.findOne({

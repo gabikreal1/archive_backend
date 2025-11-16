@@ -137,6 +137,12 @@ export class JobOrchestrationService implements OnModuleDestroy {
     }
 
     state.bids.set(bid.id, bid);
+    const meta = (bid.metadata ?? {}) as Record<string, unknown>;
+    const onchainBidId = meta.onchainBidId as string | undefined;
+    this.logger.debug(
+      `[Autopilot] Registered candidate bid for job ${jobId}: ` +
+        `candidateId=${bid.id}, onchainBidId=${onchainBidId ?? 'null'}`,
+    );
     this.websocketGateway.broadcastJobBid(jobId, bid);
   }
 
@@ -290,18 +296,11 @@ export class JobOrchestrationService implements OnModuleDestroy {
       return;
     }
 
-    const state = this.auctions.get(jobId);
-
     // Try to map onchain bidId to an existing Autopilot candidate.
-    let candidateId: string | undefined;
-    if (state) {
-      const candidate = Array.from(state.bids.values()).find((bid) => {
-        const meta = (bid.metadata ?? {}) as Record<string, unknown>;
-        const metaOnchainBidId = meta.onchainBidId as string | undefined;
-        return metaOnchainBidId === onchainBidId || bid.id === onchainBidId;
-      });
-      candidateId = candidate?.id;
-    }
+    // Bids are generated asynchronously, so we allow a short grace period
+    // (up to ~15 seconds) for auctions to populate before falling back.
+    const candidate = await this.findCandidateForOnchainBid(jobId, onchainBidId);
+    const candidateId = candidate?.id;
 
     if (candidateId) {
       try {
@@ -386,6 +385,38 @@ export class JobOrchestrationService implements OnModuleDestroy {
           }`,
         );
       });
+  }
+
+  /**
+   * Best-effort lookup of an Autopilot bid candidate for a given onchain bid.
+   * We poll the in-memory auction state for a short window (up to 15 seconds)
+   * to account for async bid generation.
+   */
+  private async findCandidateForOnchainBid(
+    jobId: string,
+    onchainBidId: string,
+    maxWaitMs = 15_000,
+  ): Promise<AutopilotBidCandidate | null> {
+    const started = Date.now();
+    const pollIntervalMs = 500;
+
+    while (Date.now() - started <= maxWaitMs) {
+      const state = this.auctions.get(jobId);
+      if (state) {
+        const candidate = Array.from(state.bids.values()).find((bid) => {
+          const meta = (bid.metadata ?? {}) as Record<string, unknown>;
+          const metaOnchainBidId = meta.onchainBidId as string | undefined;
+          return metaOnchainBidId === onchainBidId || bid.id === onchainBidId;
+        });
+        if (candidate) {
+          return candidate;
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+
+    return null;
   }
 
   async submitRating(jobId: string, dto: SubmitRatingDto) {

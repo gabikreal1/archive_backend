@@ -124,7 +124,6 @@ let JobsService = class JobsService {
             throw new Error('Bid not found');
         }
         const priceHuman = ethers_1.ethers.formatUnits(onchainBid.price, 6);
-        await this.walletService.approveEscrowSpend(userId, priceHuman);
         await this.escrow.ensureOnchainAllowance(priceHuman);
         job.status = job_entity_1.JobStatus.IN_PROGRESS;
         await this.jobsRepo.save(job);

@@ -20,16 +20,19 @@ const ethers_1 = require("ethers");
 const typeorm_2 = require("typeorm");
 const wallet_mapping_entity_1 = require("../../entities/wallet-mapping.entity");
 const circle_service_1 = require("../circle/circle.service");
+const web3_service_1 = require("../../blockchain/web3.service");
 let WalletService = WalletService_1 = class WalletService {
     walletRepo;
     circleService;
+    web3Service;
     agentKeyPrefix = 'agent:';
     logger = new common_1.Logger(WalletService_1.name);
     devAgentWalletAddress;
     devAgentCircleWalletId;
-    constructor(walletRepo, circleService) {
+    constructor(walletRepo, circleService, web3Service) {
         this.walletRepo = walletRepo;
         this.circleService = circleService;
+        this.web3Service = web3Service;
         this.devAgentCircleWalletId =
             process.env.DEV_AGENT_CIRCLE_WALLET_ID ?? 'dev-agent-circle-wallet';
         this.devAgentWalletAddress = this.deriveDevAgentWalletAddress();
@@ -38,17 +41,7 @@ let WalletService = WalletService_1 = class WalletService {
         }
     }
     async getOrCreateUserWallet(userId) {
-        let mapping = await this.walletRepo.findOne({ where: { userId } });
-        if (!mapping) {
-            const { circleWalletId, walletAddress } = await this.circleService.createWalletForUser(userId);
-            mapping = this.walletRepo.create({
-                userId,
-                circleWalletId,
-                walletAddress,
-            });
-            await this.walletRepo.save(mapping);
-        }
-        return mapping.walletAddress;
+        return this.web3Service.signer.address;
     }
     async getOrCreateMapping(userId) {
         let mapping = await this.walletRepo.findOne({ where: { userId } });
@@ -84,10 +77,12 @@ let WalletService = WalletService_1 = class WalletService {
         return this.getOrCreateMapping(this.buildAgentOwner(agentId));
     }
     async getUserBalance(userId) {
-        const mapping = await this.getOrCreateMapping(userId);
-        const usdcBalance = await this.circleService.getWalletBalance(mapping.circleWalletId);
+        const walletAddress = this.web3Service.signer.address;
+        const usdc = this.web3Service.usdc;
+        const raw = await usdc.read.balanceOf(walletAddress);
+        const usdcBalance = ethers_1.ethers.formatUnits(raw, 6);
         return {
-            walletAddress: mapping.walletAddress,
+            walletAddress,
             usdcBalance,
         };
     }
@@ -102,11 +97,7 @@ let WalletService = WalletService_1 = class WalletService {
         return { depositUrl };
     }
     async approveEscrowSpend(userId, amount) {
-        const mapping = await this.getOrCreateMapping(userId);
-        await this.circleService.approveEscrowSpend({
-            circleWalletId: mapping.circleWalletId,
-            amount,
-        });
+        this.logger.debug(`approveEscrowSpend(${userId}, ${amount}) noop – using operator onchain allowance instead`);
     }
     shouldUseDevAgentWallet(userId) {
         return (!!this.devAgentWalletAddress && userId.startsWith(this.agentKeyPrefix));
@@ -134,6 +125,7 @@ exports.WalletService = WalletService = WalletService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(wallet_mapping_entity_1.WalletMappingEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        circle_service_1.CircleService])
+        circle_service_1.CircleService,
+        web3_service_1.Web3Service])
 ], WalletService);
 //# sourceMappingURL=wallet.service.js.map

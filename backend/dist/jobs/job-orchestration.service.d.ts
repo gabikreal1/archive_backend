@@ -31,6 +31,7 @@ export declare class JobOrchestrationService implements OnModuleDestroy {
         result: JobExecutionOutput;
     }>;
     triggerExecutionForAcceptedBid(jobId: string, onchainBidId: string): Promise<void>;
+    private findCandidateForOnchainBid;
     submitRating(jobId: string, dto: SubmitRatingDto): Promise<{
         success: boolean;
     }>;

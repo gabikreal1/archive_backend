@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Wallet } from 'ethers';
+import { Wallet, ethers } from 'ethers';
 import { Repository } from 'typeorm';
 import { WalletMappingEntity } from '../../entities/wallet-mapping.entity';
 import { CircleService } from '../circle/circle.service';
+import { Web3Service } from '../../blockchain/web3.service';
 
 @Injectable()
 export class WalletService {
@@ -16,6 +17,7 @@ export class WalletService {
     @InjectRepository(WalletMappingEntity)
     private readonly walletRepo: Repository<WalletMappingEntity>,
     private readonly circleService: CircleService,
+    private readonly web3Service: Web3Service,
   ) {
     this.devAgentCircleWalletId =
       process.env.DEV_AGENT_CIRCLE_WALLET_ID ?? 'dev-agent-circle-wallet';
@@ -29,22 +31,13 @@ export class WalletService {
   }
 
   /**
-   * For MVP we simply ensure there is a mapping and return a deterministic
-   * pseudo-address based on user id. Integrate real Circle wallet here later.
+   * For MVP we now treat the shared WEB3 operator wallet as the "user wallet"
+   * for posting jobs and paying escrows. This keeps the onchain view consistent
+   * with what the contracts actually use as `poster`.
    */
   async getOrCreateUserWallet(userId: string): Promise<string> {
-    let mapping = await this.walletRepo.findOne({ where: { userId } });
-    if (!mapping) {
-      const { circleWalletId, walletAddress } =
-        await this.circleService.createWalletForUser(userId);
-      mapping = this.walletRepo.create({
-        userId,
-        circleWalletId,
-        walletAddress,
-      });
-      await this.walletRepo.save(mapping);
-    }
-    return mapping.walletAddress;
+    // Все пользователи в DEV разделяют один onchain‑кошелёк оператора.
+    return this.web3Service.signer.address;
   }
 
   async getOrCreateMapping(userId: string): Promise<WalletMappingEntity> {
@@ -91,12 +84,13 @@ export class WalletService {
     walletAddress: string;
     usdcBalance: string;
   }> {
-    const mapping = await this.getOrCreateMapping(userId);
-    const usdcBalance = await this.circleService.getWalletBalance(
-      mapping.circleWalletId,
-    );
+    // Показываем фактический onchain‑баланс USDC оператора на ARC testnet.
+    const walletAddress = this.web3Service.signer.address;
+    const usdc = this.web3Service.usdc;
+    const raw: bigint = await usdc.read.balanceOf(walletAddress);
+    const usdcBalance = ethers.formatUnits(raw, 6);
     return {
-      walletAddress: mapping.walletAddress,
+      walletAddress,
       usdcBalance,
     };
   }
@@ -117,11 +111,12 @@ export class WalletService {
   }
 
   async approveEscrowSpend(userId: string, amount: string): Promise<void> {
-    const mapping = await this.getOrCreateMapping(userId);
-    await this.circleService.approveEscrowSpend({
-      circleWalletId: mapping.circleWalletId,
-      amount,
-    });
+    // no-op: onchain allowance for Escrow is managed via EscrowService.ensureOnchainAllowance
+    // using Web3Service.signer (operator wallet). We keep this method for backwards
+    // compatibility with JobsService, but it no longer touches Circle in DEV.
+    this.logger.debug(
+      `approveEscrowSpend(${userId}, ${amount}) noop – using operator onchain allowance instead`,
+    );
   }
 
   private shouldUseDevAgentWallet(userId: string): boolean {

@@ -134,8 +134,9 @@ export class JobsService {
 
     const priceHuman = ethers.formatUnits(onchainBid.price, 6);
 
-    // 1) Approve USDC spending via Circle (offchain) and on-chain (USDC->Escrow)
-    await this.walletService.approveEscrowSpend(userId, priceHuman);
+    // 1) Ensure on-chain USDC allowance from the shared operator wallet to Escrow.
+    //    Circle is no longer used for DEV spends; funds are pulled directly from
+    //    the WEB3 operator wallet.
     await this.escrow.ensureOnchainAllowance(priceHuman);
 
     // 2) Local job status cache (escrow is managed by the protocol / order book)

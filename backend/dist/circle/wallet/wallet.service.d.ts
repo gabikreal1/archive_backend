@@ -1,14 +1,16 @@
 import { Repository } from 'typeorm';
 import { WalletMappingEntity } from '../../entities/wallet-mapping.entity';
 import { CircleService } from '../circle/circle.service';
+import { Web3Service } from '../../blockchain/web3.service';
 export declare class WalletService {
     private readonly walletRepo;
     private readonly circleService;
+    private readonly web3Service;
     private readonly agentKeyPrefix;
     private readonly logger;
     private readonly devAgentWalletAddress?;
     private readonly devAgentCircleWalletId;
-    constructor(walletRepo: Repository<WalletMappingEntity>, circleService: CircleService);
+    constructor(walletRepo: Repository<WalletMappingEntity>, circleService: CircleService, web3Service: Web3Service);
     getOrCreateUserWallet(userId: string): Promise<string>;
     getOrCreateMapping(userId: string): Promise<WalletMappingEntity>;
     private buildAgentOwner;
