@@ -22,16 +22,16 @@ const config_1 = require("@nestjs/config");
 const openai_1 = __importDefault(require("openai"));
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
-const sergbot_task_entity_1 = require("../../entities/sergbot-task.entity");
+const job_entity_1 = require("../../entities/job.entity");
 let AgentsService = AgentsService_1 = class AgentsService {
     configService;
-    tasksRepo;
+    jobsRepo;
     logger = new common_1.Logger(AgentsService_1.name);
     openai;
     conversations = new Map();
-    constructor(configService, tasksRepo) {
+    constructor(configService, jobsRepo) {
         this.configService = configService;
-        this.tasksRepo = tasksRepo;
+        this.jobsRepo = jobsRepo;
         const apiKey = this.configService.get('OPENAI_API_KEY');
         if (!apiKey) {
             this.logger.warn('OPENAI_API_KEY is not set – LLM ответы будут fallback-заглушкой.');
@@ -157,22 +157,22 @@ let AgentsService = AgentsService_1 = class AgentsService {
     async handleUserMessage(payload) {
         this.logger.debug(`User message in conversation ${payload.conversationId} from ${payload.userId ?? 'anonymous'}: ${payload.message}`);
         if (payload.userId) {
-            const existingTask = await this.tasksRepo.findOne({
+            const existingJob = await this.jobsRepo.findOne({
                 where: {
                     conversationId: payload.conversationId,
-                    userId: payload.userId,
-                    status: 'PENDING',
+                    createdByUserId: payload.userId,
+                    status: job_entity_1.JobStatus.OPEN,
                 },
             });
-            if (existingTask) {
+            if (existingJob) {
                 return {
                     conversationId: payload.conversationId,
                     messageId: `agent-msg-${Date.now()}`,
                     role: 'assistant',
                     message: 'Your task has already been submitted to the system. Please wait while executor agents review it and place their bids.',
                     context: {
-                        sergbotTaskId: existingTask.id,
-                        sergbotTaskStatus: existingTask.status,
+                        sergTaskId: existingJob.id,
+                        sergTaskStatus: existingJob.status,
                     },
                 };
             }
@@ -191,15 +191,19 @@ let AgentsService = AgentsService_1 = class AgentsService {
             const deadlineDate = sergbot.task.deadline != null
                 ? new Date(sergbot.task.deadline)
                 : null;
-            const task = this.tasksRepo.create({
+            const jobId = `job_${Date.now()}`;
+            const job = this.jobsRepo.create({
+                id: jobId,
+                posterWallet: '0xSYSTEM_SERGBOT',
+                createdByUserId: payload.userId,
                 conversationId: payload.conversationId,
-                userId: payload.userId,
                 description: sergbot.task.description,
+                metadataUri: null,
                 tags: sergbot.task.tags ?? null,
                 deadline: deadlineDate,
-                status: 'PENDING',
+                status: job_entity_1.JobStatus.OPEN,
             });
-            const saved = await this.tasksRepo.save(task);
+            const saved = await this.jobsRepo.save(job);
             context = {
                 sergbotTaskId: saved.id,
                 sergbotTaskStatus: saved.status,
@@ -217,7 +221,7 @@ let AgentsService = AgentsService_1 = class AgentsService {
 exports.AgentsService = AgentsService;
 exports.AgentsService = AgentsService = AgentsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(1, (0, typeorm_1.InjectRepository)(sergbot_task_entity_1.SergbotTaskEntity)),
+    __param(1, (0, typeorm_1.InjectRepository)(job_entity_1.JobEntity)),
     __metadata("design:paramtypes", [config_1.ConfigService,
         typeorm_2.Repository])
 ], AgentsService);

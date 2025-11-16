@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SergbotTaskEntity } from '../../entities/sergbot-task.entity';
+import { JobEntity, JobStatus } from '../../entities/job.entity';
 
 interface SergbotTaskDraft {
   description: string;
@@ -33,8 +33,8 @@ export class AgentsService {
 
   constructor(
     private readonly configService: ConfigService,
-    @InjectRepository(SergbotTaskEntity)
-    private readonly tasksRepo: Repository<SergbotTaskEntity>,
+    @InjectRepository(JobEntity)
+    private readonly jobsRepo: Repository<JobEntity>,
   ) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
@@ -200,18 +200,18 @@ export class AgentsService {
       `User message in conversation ${payload.conversationId} from ${payload.userId ?? 'anonymous'}: ${payload.message}`,
     );
 
-    // Если для этой conversation уже есть созданная таска – SergBot
+    // Если для этой conversation уже есть созданный job – SergBot
     // переходит в режим ожидания и больше не уточняет задачу.
     if (payload.userId) {
-      const existingTask = await this.tasksRepo.findOne({
+      const existingJob = await this.jobsRepo.findOne({
         where: {
           conversationId: payload.conversationId,
-          userId: payload.userId,
-          status: 'PENDING',
+          createdByUserId: payload.userId,
+          status: JobStatus.OPEN,
         },
       });
 
-      if (existingTask) {
+      if (existingJob) {
         return {
           conversationId: payload.conversationId,
           messageId: `agent-msg-${Date.now()}`,
@@ -219,8 +219,8 @@ export class AgentsService {
           message:
             'Your task has already been submitted to the system. Please wait while executor agents review it and place their bids.',
           context: {
-            sergbotTaskId: existingTask.id,
-            sergbotTaskStatus: existingTask.status,
+            sergTaskId: existingJob.id,
+            sergTaskStatus: existingJob.status,
           },
         };
       }
@@ -249,16 +249,21 @@ export class AgentsService {
           ? new Date(sergbot.task.deadline)
           : null;
 
-      const task = this.tasksRepo.create({
+      const jobId = `job_${Date.now()}`;
+
+      const job = this.jobsRepo.create({
+        id: jobId,
+        posterWallet: '0xSYSTEM_SERGBOT', // временный placeholder, пока нет onchain‑связки
+        createdByUserId: payload.userId,
         conversationId: payload.conversationId,
-        userId: payload.userId,
         description: sergbot.task.description,
+        metadataUri: null,
         tags: sergbot.task.tags ?? null,
         deadline: deadlineDate,
-        status: 'PENDING',
+        status: JobStatus.OPEN,
       });
 
-      const saved = await this.tasksRepo.save(task);
+      const saved = await this.jobsRepo.save(job);
 
       context = {
         sergbotTaskId: saved.id,

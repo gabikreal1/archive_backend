@@ -23,6 +23,8 @@ var JobStatus;
 let JobEntity = class JobEntity {
     id;
     posterWallet;
+    createdByUserId;
+    conversationId;
     description;
     metadataUri;
     tags;
@@ -41,6 +43,14 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'poster_wallet' }),
     __metadata("design:type", String)
 ], JobEntity.prototype, "posterWallet", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by_user_id', type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], JobEntity.prototype, "createdByUserId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'conversation_id', type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], JobEntity.prototype, "conversationId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text' }),
     __metadata("design:type", String)
